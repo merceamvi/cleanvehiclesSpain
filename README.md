@@ -34,8 +34,23 @@ The script automatically installs/updates packages, downloads data, and generate
 
 ## **Reproducibility and Support**
 This script has been carefully designed to facilitate reproducibility and transparency.   
-If you encounter any issues or have questions, please open an issue in this repository or contact the corresponding author of the article.   
+If you encounter any issues or have questions, please open an issue in this repository or contact the corresponding author of the article. 
 
+## **License and Citation**
+
+This script is licensed under the [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).  
+You are free to copy, modify, and distribute the work as long as you provide appropriate credit to the original authors.
+
+### Citation
+
+If you use or adapt this script for your work, please cite the following authors:
+
+- **Mercè Amich**, Department of Quantitative Methods, University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [merce.amich@ehu.eus](mailto:merce.amich@ehu.eus)
+- **Manuel Tomás**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country, Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain. E-mail: [manuel.tomas@bc3research.org](mailto:manuel.tomas@bc3research.org)
+- **Iñaki Arto**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country, Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain. E-mail: [inaki.arto@bc3research.org](mailto:inaki.arto@bc3research.org)
+- **Petr Mariel**, Department of Quantitative Methods, University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [petr.mariel@ehu.es](mailto:petr.mariel@ehu.es), Tel: +34.94.601.3848, Fax: +34.94.601.3754
+
+Please ensure that proper attribution is given when citing or using the script in your research or projects.
 
 
 
