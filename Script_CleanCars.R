@@ -72,9 +72,6 @@ setwd(paste0(path))
 # Define structural part of the url
 base.url = 'https://www.ine.es/ftp/microdatos/ecepov/'
 
-# Set working directory
-setwd(paste0(path, "/DATA/"))
-
 # Delete the folder generated in previous runs (if it exists) 
 if(dir.exists(paste0(path, "/DATA/"))){unlink(paste0(path, "/DATA/"), recursive = TRUE)}
 
