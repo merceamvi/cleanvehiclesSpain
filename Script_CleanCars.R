@@ -1293,6 +1293,12 @@ apollo_saveOutput(model,
 # Clear workspace
 rm(list = ls(all = TRUE))
 
+# Define main path
+path <- here()
+
+# Set working directory
+setwd(paste0(path))
+
 # Load Apollo model output
 model <- readRDS(file.path(path, "DATA", "EC_model.rds"))
 
