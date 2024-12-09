@@ -7,6 +7,10 @@ Package Management: All required R packages are automatically installed and upda
 Users do not need to manually install or manage dependencies.  
 The script ensures that the R packages are installed and loaded for all users.  
 
+## **Data download**
+The script automates the download of data from the public database of the Spanish Statistical Office (Instituto Nacional de Estadística). 
+Users do not need to manually locate or download data, as the script handles the process entirely.
+
 ## **Structure of the Script**
 The script is organized into six sections for clarity:  
 
