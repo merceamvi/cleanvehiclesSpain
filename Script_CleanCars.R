@@ -597,8 +597,6 @@ table2_b <- data %>%
   print()
 
 
-
-## [7.2] "Table B.1. Numerical variables: descriptive statistics"
 ## [7.2] "Table B.1. Numerical variables: descriptive statistics" ----
 ### a) Socio-demographic ----
 tableb1_socdem <- data %>%
@@ -685,9 +683,6 @@ tablec1_socdem <- data %>%
   ) %>%
   mutate(variable = sub("proportion_of_1_", "", variable)) %>%
   print()
-
-
-
 
 
 ### b) Mobility-related ----
