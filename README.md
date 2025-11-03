@@ -14,12 +14,12 @@ Users do not need to manually locate or download data, as the script handles the
 ## **Structure of the Script**
 The script is organized into six sections for clarity:  
 
-1. [Objective](https://github.com/merceamvi/cleanvehiclesSpain/blob/68025f03a1620c106f09a8e1dfa6c65141bf97b4/Script_CleanCars.R#L8): An overview of the analysis objectives and research questions addressed in the article  
-2. [Preliminaries](https://github.com/merceamvi/cleanvehiclesSpain/blob/68025f03a1620c106f09a8e1dfa6c65141bf97b4/Script_CleanCars.R#L15): Automatic installation or updating of required packages, loading libraries, and setting up the working environment  
-3. [Download Data and Preprocessing](https://github.com/merceamvi/cleanvehiclesSpain/blob/68025f03a1620c106f09a8e1dfa6c65141bf97b4/Script_CleanCars.R#L66-L68): Automated data download, data cleaning, and preparation for analysis  
-4. [Descriptive Statistics and Frequency Tables](https://github.com/merceamvi/cleanvehiclesSpain/blob/68025f03a1620c106f09a8e1dfa6c65141bf97b4/Script_CleanCars.R#L553-L555): Summary statistics and frequency tables for the variables of interest, providing an overview of the dataset  
-5. [Model Estimation](https://github.com/merceamvi/cleanvehiclesSpain/blob/68025f03a1620c106f09a8e1dfa6c65141bf97b4/Script_CleanCars.R#L762-L764): Estimation of an Error-Component Mixed Logit model using the Apollo package  
-6. [Post-Estimation](https://github.com/merceamvi/cleanvehiclesSpain/blob/68025f03a1620c106f09a8e1dfa6c65141bf97b4/Script_CleanCars.R#L1291-L1293): Benchmark household creation, changes in choice probabilities and plots for interpreting model results.  
+1. [Objective](https://github.com/merceamvi/cleanvehiclesSpain/blob/8788fb15821c4d2f59032ee9acd0ac6eaf38d6de/Script_CleanCars.R#L8): An overview of the analysis objectives and research questions addressed in the article  
+2. [Preliminaries](https://github.com/merceamvi/cleanvehiclesSpain/blob/8788fb15821c4d2f59032ee9acd0ac6eaf38d6de/Script_CleanCars.R#L15): Automatic installation or updating of required packages, loading libraries, and setting up the working environment  
+3. [Download Data and Preprocessing](): Automated data download, data cleaning, and preparation for analysis  
+4. [Descriptive Statistics and Frequency Tables](https://github.com/merceamvi/cleanvehiclesSpain/blob/8788fb15821c4d2f59032ee9acd0ac6eaf38d6de/Script_CleanCars.R#L527): Summary statistics and frequency tables for the variables of interest, providing an overview of the dataset  
+5. [Model Estimation](https://github.com/merceamvi/cleanvehiclesSpain/blob/8788fb15821c4d2f59032ee9acd0ac6eaf38d6de/Script_CleanCars.R#L731): Estimation of an Error-Component Mixed Logit model using the Apollo package  
+6. [Post-Estimation](https://github.com/merceamvi/cleanvehiclesSpain/blob/8788fb15821c4d2f59032ee9acd0ac6eaf38d6de/Script_CleanCars.R#L1276): AME computation + CIs 95% via 1k parametric MC simulation and final plot.  
 
 ## **Data Access**
 Download Instructions: The script automatically downloads the required datasets as part of the preprocessing step. Ensure an active internet connection when running the script.  
