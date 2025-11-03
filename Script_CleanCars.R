@@ -1,18 +1,18 @@
 # Project       : Clean vehicle ownership in Spain
 # Creation date : 08/04/2024
-# Last update   : 08/11/2024
+# Last update   : 31/11/2024
 # Author        : Mercè Amich (merce.amich@ehu.eus)
 # Institution   : Euskal Herriko Unibertsitatea / Universidad del País Vasco
-# Last run time : ~86h
+# Last run time : ~100h
 
-# [1] Objective
+# 1. OBJECTIVE #################################################################
 
 # Download ECEPOV-21 data & process it
 # Descriptive statistics and frequency tables
 # Error-Component Mixed Logit model (Apollo)
-# Post-estimation: benchmark individual, plots
+# Post-estimation: AME computation, plot
 
-# [2] Preliminaries ----
+# 2. PRELIMINARY STEPS #########################################################
 
 # Clear workspace
 rm(list = ls(all = TRUE))
@@ -45,7 +45,9 @@ packages.needed <- c ("dplyr"       ,
                       "MASS"        , 
                       "forplo"      , 
                       "patchwork"   ,
-                      "forcats"
+                      "forcats"     , 
+                      "ggh4x"
+                      
 )
 
 for (p in packages.needed) {
@@ -59,45 +61,24 @@ path <- here()
 # Set working directory
 setwd(paste0(path))
 
+# 3. DOWNLOAD DATA & PROCESS IT ################################################
 
+# == [A] Download survey from the Spanish Statistical Office ==================
 
-
-
-################################################################################
-####### DOWNLOAD DATA & PROCESS IT #############################################
-################################################################################
-
-# [3] Download survey from the Spanish Statistical Office ----
-
-# Define structural part of the url
-base.url = 'https://www.ine.es/ftp/microdatos/ecepov/'
+base.url = 'https://www.ine.es/ftp/microdatos/ecepov/' # Define structural url
+setwd(paste0(path, "/DATA/")) # Set working directory
 
 # Delete the folder generated in previous runs (if it exists) 
 if(dir.exists(paste0(path, "/DATA/"))){unlink(paste0(path, "/DATA/"), recursive = TRUE)}
 
-# Create raw data folder 
-dir.create(paste0(path, "/DATA/"))
-
-# Define zip file
-eval(parse(text = paste0("file = 'datos_2021.zip'")))
-
-# Define url
-url <- paste0(base.url, file)
-
-# Set the destination file
-destination <- paste0(file)
-
-# Set working directory
-setwd(paste0(path, "/DATA/"))
-
-# Download microdata
-download(url, destination,  mode = 'wb')
-
-# Unzip microdata
-unzip(destination)
-
-# Delete unzipped folder
-unlink(destination, recursive = TRUE)
+dir.create(paste0(path, "/DATA/")) # Create raw data folder 
+eval(parse(text = paste0("file = 'datos_2021.zip'"))) # Define zip file
+url <- paste0(base.url, file) # Define url
+destination <- paste0(file) # Set the destination file
+setwd(paste0(path, "/DATA/")) # Set working directory
+download(url, destination,  mode = 'wb') # Download microdata
+unzip(destination)  # Unzip microdata
+unlink(destination, recursive = TRUE) # Delete unzipped folder
 
 # Create list of folders in the directory
 list.folders = list.files(pattern     = '.zip', 
@@ -106,14 +87,10 @@ list.folders = list.files(pattern     = '.zip',
 # By folder
 for (f in 1:length(list.folders)) {
   
-  # Define parameters
-  folder = list.folders[f]
+  folder = list.folders[f]   # Define parameters
+  unzip(folder)   # Unzip microdata
+  unlink(folder, recursive = TRUE) # Delete useless folder(s)
   
-  # Unzip microdata
-  unzip(folder)
-  
-  # Delete useless folder(s)
-  unlink(folder, recursive = TRUE)
 }
 
 # Function to load and rename datasets
@@ -129,8 +106,9 @@ load_and_rename("ECEPOVvivienda_2021.RData", "dataV")
 load_and_rename("ECEPOVhogar_2021.RData"   , "dataH")
 load_and_rename("ECEPOVadultos_2021.RData" , "dataA")
 
-# [4] Create intermediate files ----
-## [4.1] From "dataH" ("hogar") to "mergeFileH" ####
+# == [B] Create intermediate files =============================================
+
+## [B.1] From "dataH" ("hogar") to "mergeFileH" ####
 
 # Create new dummy variables and select final variables of interest
 
@@ -218,7 +196,7 @@ mergeFileH <- mergeFileH %>%
   )
 
 
-## [4.2] From "dataA" ("adultos") to "mergeFileA" ####
+## [B.2] From "dataA" ("adultos") to "mergeFileA" ####
 
 # Recode EC (Estado Civil)
 dataA$SOLTERO  <- ifelse(dataA$EC == 1, 1, 0)
@@ -328,7 +306,7 @@ mergeFileA <- mergeFileA %>%
   )
 
 
-## [4.3] Merge "mergeFileH" and "mergeFileA" with "dataV" ----
+## [B.3] Merge "mergeFileH" and "mergeFileA" with "dataV" ----
 
 data <- left_join(dataV, mergeFileH, by = c("IDEN", "FACTOR"))
 data <- left_join(data,  mergeFileA, by = c("IDEN", "FACTOR"))
@@ -340,7 +318,7 @@ save(data, file = "data.Rdata")
 
 remove("dataA", "dataH", "dataV", "mergeFileA", "mergeFileH")
 
-# [5] Create new variables ----
+# == [C] Create new variables ==================================================
 
 # Clean-Car Ownership 
 # 1: No car / 2: Fuel car  / 3: Clean car
@@ -456,7 +434,7 @@ data$MULTIFAMILIAR <- ifelse(data$TIPOEDIF == 2, 1, 0)
 
 save(data, file = "data.Rdata")
 
-# [6] Rename vars in english ----
+# == [D] Rename vars in english ================================================
 
 data <- data %>%
   rename(
@@ -546,12 +524,10 @@ data <- data %>%
 save(data, file = "data.Rdata")
 
 
+# 4. CREATE DESCRIPTIVE TABLES #################################################
 
-################################################################################
-####### TABLES #################################################################
-################################################################################
+## == [A] "Table 2: Vehicle ownership" =======================================
 
-## [7.1] "Table 2: Vehicle ownership" ----
 ### a) "No vehicle", "Yes vehicle": Type of vehicles (4 types) ----
 
 table2_a <- data %>%
@@ -596,8 +572,7 @@ table2_b <- data %>%
   arrange(match(CARTYPE, c("No car", "Fuel car", "Clean car"))) %>%
   print()
 
-
-## [7.2] "Table B.1. Numerical variables: descriptive statistics" ----
+## == [B] "Table B.1. Numerical variables: descriptive statistics" =============
 ### a) Socio-demographic ----
 tableb1_socdem <- data %>%
   summarise(
@@ -651,7 +626,7 @@ tableb1_mob <- data %>%
   tibble() %>%
   print()
 
-## [7.3] "Table C.1. Categorical variables: frequency distributions" ----
+## == [C] "Table C.1. Categorical variables: frequency distributions" ==========
 ### a) Socio-demographic ----
 tablec1_socdem <- data %>%
   summarise(
@@ -683,6 +658,9 @@ tablec1_socdem <- data %>%
   ) %>%
   mutate(variable = sub("proportion_of_1_", "", variable)) %>%
   print()
+
+
+
 
 
 ### b) Mobility-related ----
@@ -750,36 +728,36 @@ tablec1_dwell <- data %>%
   print()
 
 
+# 5. ERROR-COMPONENT MIXED LOGIT MODEL (APOLLO) ################################
 
-################################################################################
-####### ERROR-COMPONENT MIXED LOGIT MODEL (APOLLO) #############################
-################################################################################
+gc() 
 
-# [8] Set Apollo controls ----
+# == [A] Set Apollo controls ===================================================
 apollo_control = list(
-  modelName  = "EC",
+  modelName  = "EC_24092025",
   modelDescr = "Weighted_EC_vehitype",
   indivID    = "IDEN",
   weights    = "FACTOR",
   nCores     = 10
 )
 
-# [9] Load data ----
+# == [B] Load data =============================================================
 
-# Read data
 load("data.Rdata")
 set.seed(123)
 database  <- data
 remove(list = "data")
 
+gc()
+
 # Divide FACTOR/100 in order for the Log-Likelihood algorithm to converge
 database$FACTOR <- database$FACTOR/100
 
-# [10] Define model parameters ----
+# == [C] Define model parameters ===============================================
 
 #ASC_2 + Betas of Alt:2 [baseline: Fuel Car] are fixed to zero
 
-# [11] Define model parameters (initial values) ----
+# [C.1] "apollo_beta": define model parameters (initial values) ----
 apollo_beta = c(
   asc_1                    =  -0.067885,
   asc_2                    =  0.0,
@@ -947,9 +925,8 @@ apollo_beta = c(
   
 )
 
-## Apollo fixed (alt2) ####
-### Vector with names (in quotes) of parameters to be kept fixed at their starting value in apollo_beta
-### Use apollo_beta_fixed = c() if none
+# [C.2] "apollo_fixed": alt2
+# Vector with names (in quotes) of parameters to be kept fixed at their starting value in apollo_beta
 
 apollo_fixed = c("asc_2",
                  
@@ -1006,18 +983,18 @@ apollo_fixed = c("asc_2",
                  
 ) 
 
-## Define random components ----
+# [C.3] "apollo_draws" ----
 
 ### Set parameters for generating draws (5000 sobol draws)
 apollo_draws = list(
   interDrawsType = "sobol",
-  interNDraws    = 5000,
+  interNDraws    = 1000,
   interUnifDraws = c(),
   interNormDraws = c("draws_2",
                      "draws_3")
 )
 
-### Create random parameters
+# [C.3] "apollo_randCoeff" ----
 apollo_randCoeff = function(apollo_beta, apollo_inputs){
   randcoeff = list()
   randcoeff[["r_2"]] =     ( sd_2 * draws_2)
@@ -1026,11 +1003,13 @@ apollo_randCoeff = function(apollo_beta, apollo_inputs){
 }
 
 
-# [12] Validate data ----
+# == [D] Validate data =========================================================
 
 apollo_inputs = apollo_validateInputs()
 
-# [13] Define Apollo probabilities ####
+# == [E] Apollo probabilities ==================================================
+
+# [E.1] "apollo_probabilities" ----
 
 apollo_probabilities=function(apollo_beta,
                               apollo_inputs,
@@ -1218,25 +1197,39 @@ apollo_probabilities=function(apollo_beta,
   
   # *************************************************************************************
   
-  
   ### Create list of probabilities P
   P = list()
   
   ### Compute probabilities using MNL model
+  
   P[["model"]] = apollo_mnl(mnl_settings, functionality)
   
+  # !! KEY STEP for the AME computation to well-behave:
+  # "raw" returns "P": raw pred. probabilities for each individual/draw
+  # if not, apollo averages the random components of the draws and CIs cannot
+  # be computed:
+  if (functionality == "raw") return(P)  # !! 
+  
+  # The rest, as in apollo estimation:
   ### Account for the weights
   P = apollo_weighting(P, apollo_inputs, functionality)
   
   ### Average across inter-individual draws
   P = apollo_avgInterDraws(P, apollo_inputs, functionality)
   
+  
   ### Prepare and return outputs of function
+  # if (functionality == "raw") {
+  #   return(P)  # skip apollo_prepareProb() and averaging
+  # }
+  
   P = apollo_prepareProb(P, apollo_inputs, functionality)
   return(P)
 }
 
-# [14] Estimate the model ----
+# == [F] Estimate the model ====================================================
+
+# [F.1] "apollo_estimate" ----
 
 model = apollo_estimate(apollo_beta, 
                         apollo_fixed, 
@@ -1244,7 +1237,8 @@ model = apollo_estimate(apollo_beta,
                         apollo_inputs, 
                         estimate_settings=list(
                           maxIterations=500))     
-# [15] Model output (obtain & save for Table A.1) ----
+
+# == [G] Model output (obtain & save for Table A.1) ============================
 
 apollo_modelOutput(model,
                    modelOutput_settings = list(
@@ -1279,1880 +1273,786 @@ apollo_saveOutput(model,
 
 
 
+# 6. POST-ESTIMATION ###########################################################
 
-################################################################################
-####### POST-ESTIMATION   ######################################################
-################################################################################
+# == [A] Load model and data ===================================================
 
-# [16] Load model and data ----
-# Clear workspace
-rm(list = ls(all = TRUE))
+rm(list = ls(all = TRUE)) # clear workspace
+database <- load(file.path(path, "data.Rdata")) # load data
+database <- data # rename & transform to data.frame
+database$FACTOR <- database$FACTOR / 100 # adjust weights as in the model
+remove(data) # keep environment clean & memory usage low
+model    <- readRDS(file.path(path, "EC_model.rds")) # load model
 
-# Define main path
-path <- here()
+# == [B] Create apollo objects in environment again ============================
 
-# Set working directory
-setwd(paste0(path))
+set.seed(123) # for reproducibility
 
-# Load Apollo model output
-model <- readRDS(file.path(path, "DATA", "EC_model.rds"))
-
-# Load data and assign it to `database` directly
-load(file.path(path, "DATA", "data.Rdata"))
-database <- data; rm(data)
-
-
-# [17] Extract "betas" from the model ----
-betas <- as.matrix(t(model$estimate[!grepl("^b2", 
-                                           names(model$estimate)) 
-                                    & names(model$estimate) != "asc_2"]))
-
-# [18] Create "benchmark household" data.frame ----
-individual <- data.frame(
-  
-  hh_foreign              = 1,     
-  
-  hh_oneperson            = 0,     
-  hh_singleparent         = 0,       
-  hh_twoadultsalone       = 1,
-  hh_twoadultsandchild    = 0,       
-  
-  hh_num_members          = 2, 
-  hh_num_minors           = 0,                 
-  hh_propmale18           = median(database$hh_propmale18),      
-  hh_meanage18            = median(database$hh_meanage18),
-  
-  hh_some_higheduc         = 0,
-  hh_all_higheduc          = 1,
-  
-  inc_1_to_2_thous        = 0,
-  inc_2_to_3_thous        = 0,
-  inc_3_to_5_thous        = 0,
-  inc_more_5_thous        = 1,
-  
-  ws_all_work             = 0,
-  ws_none_work            = 0,
-  
-  wp_ownhome              = 0,
-  wp_myprovince           = 0,
-  wp_otherplace           = 1,
-  
-  com_20_to_39_min        = 1,
-  com_40_to_59_min        = 0,
-  com_more_1_hour         = 0,
-  
-  com_num_trips           = median(database$com_num_trips),   
-  
-  geo_50_100_thous        = 1,
-  geo_100_500_thous       = 0,
-  geo_more_500_thous      = 0,
-  
-  geo_barcelona           = 0,
-  geo_madrid              = 0,
-  
-  geo_services            = median(database$geo_services),
-  
-  h_secondhome            = 1,
-  
-  h_ownership             = 1,
-  h_rental                = 0,
-  
-  h_park_slot             = 1,
-  h_detached              = 1,
-  
-  mob_other_vehi         = 1,
-  
-  mob_pmt_priv_car        = 1,
-  mob_pmt_pub_trans       = 0,
-  mob_pmt_moto            = 0
-  
+apollo_control = list(
+  modelName  = "EC",
+  modelDescr = "Weighted_EC_vehitype",
+  indivID    = "IDEN",
+  weights    = "FACTOR",
+  nCores     = 10 
 )
 
-save(individual, file = "individual.RData")
-# [19] Compute probabilities alt1/alt2/alt3 for "benchmark" individual ----
+apollo_beta = c(asc_1 = -0.067885, asc_2 = 0.0, asc_3 = -4.144465, 
+                b1_hh_foreign = 1.007025, b2_hh_foreign = 0.0, 
+                b3_hh_foreign = 0.144441, b1_hh_oneperson = 0.518905, 
+                b2_hh_oneperson = 0.0, b3_hh_oneperson = 0.074264, 
+                b1_hh_singleparent = -0.039404, b2_hh_singleparent = 0.0, 
+                b3_hh_singleparent = 0.022402, b1_hh_twoadultsalone = -0.790167,
+                b2_hh_twoadultsalone = 0.0, b3_hh_twoadultsalone = 0.152213, 
+                b1_hh_twoadultsandchild = -1.241126, 
+                b2_hh_twoadultsandchild = 0.0, b3_hh_twoadultsandchild = -0.086202, 
+                b1_hh_num_members = -0.192716, b2_hh_num_members = 0.0, 
+                b3_hh_num_members = -0.038092, b1_hh_num_minors = 0.066684, 
+                b2_hh_num_minors = 0.0, b3_hh_num_minors = 0.186956, 
+                b1_hh_propmale18 = 0.0, b2_hh_propmale18 = 0.0, 
+                b3_hh_propmale18 = 0.0, b1_hh_meanage18 = 0.0, 
+                b2_hh_meanage18 = 0.0, b3_hh_meanage18 = 0.0, 
+                b1_hh_some_higheduc = -0.468874, b2_hh_some_higheduc = 0.0, 
+                b3_hh_some_higheduc = 0.526702, b1_hh_all_higheduc = -0.562453, 
+                b2_hh_all_higheduc = 0.0, b3_hh_all_higheduc = 0.713541, 
+                b1_inc_1_to_2_thous = -0.360102, b2_inc_1_to_2_thous = 0.0, 
+                b3_inc_1_to_2_thous = -0.052324, b1_inc_2_to_3_thous = -0.980756,
+                b2_inc_2_to_3_thous = 0.0, b3_inc_2_to_3_thous = 0.303296, 
+                b1_inc_3_to_5_thous = -1.104291, b2_inc_3_to_5_thous = 0.0, 
+                b3_inc_3_to_5_thous = 0.748509, b1_inc_more_5_thous = -0.656055, 
+                b2_inc_more_5_thous = 0.0, b3_inc_more_5_thous = 1.158671, 
+                b1_ws_all_work = -0.511006, b2_ws_all_work = 0.0, 
+                b3_ws_all_work = 0.072424, b1_ws_none_work = 0.275080, 
+                b2_ws_none_work = 0.0, b3_ws_none_work = -0.712666, 
+                b1_wp_ownhome = -0.083514, b2_wp_ownhome = 0.0, 
+                b3_wp_ownhome = 0.362673, b1_wp_myprovince = -0.467923, 
+                b2_wp_myprovince = 0.0, b3_wp_myprovince = 0.235941, 
+                b1_wp_otherplace = -0.590603, b2_wp_otherplace = 0.0, 
+                b3_wp_otherplace = -0.083879, b1_com_20_to_39_min = -0.189068, 
+                b2_com_20_to_39_min = 0.0, b3_com_20_to_39_min = -0.083177, 
+                b1_com_40_to_59_min = 0.077159, b2_com_40_to_59_min = 0.0, 
+                b3_com_40_to_59_min = 0.003872, b1_com_more_1_hour = 0.077159, 
+                b2_com_more_1_hour = 0.0, b3_com_more_1_hour = 0.003872, 
+                b1_com_num_trips = -0.155225, b2_com_num_trips = 0.0, 
+                b3_com_num_trips = -0.003803, b1_geo_50_100_thous = 0.176347, 
+                b2_geo_50_100_thous = 0.0, b3_geo_50_100_thous = 0.227539, 
+                b1_geo_100_500_thous = 0.516286, b2_geo_100_500_thous = 0.0, 
+                b3_geo_100_500_thous = 0.179566, b1_geo_more_500_thous = 1.138612, 
+                b2_geo_more_500_thous = 0.0, b3_geo_more_500_thous = 0.168840, 
+                b1_geo_barcelona = 0.450697, b2_geo_barcelona = 0.0, 
+                b3_geo_barcelona = 0.133745, b1_geo_madrid = 0.0, 
+                b2_geo_madrid = 0.0, b3_geo_madrid = 0.0, b1_geo_services = 0.0,
+                b2_geo_services = 0.0, b3_geo_services = 0.0, 
+                b1_h_secondhome = 0.0, b2_h_secondhome = 0.0, 
+                b3_h_secondhome = 0.0, b1_h_ownership = 0.0, 
+                b2_h_ownership = 0.0, b3_h_ownership = 0.0, b1_h_rental = 0.0, 
+                b2_h_rental = 0.0, b3_h_rental = 0.0, b1_h_park_slot = 0.0, 
+                b2_h_park_slot = 0.0, b3_h_park_slot = 0.0, b1_h_detached = 0.0, 
+                b2_h_detached = 0.0, b3_h_detached = 0.0, b2_mob_other_vehi = 0.0, 
+                b3_mob_other_vehi = 0.0, b2_mob_pmt_priv_car = 0.0, 
+                b3_mob_pmt_priv_car = 0.0, b1_mob_pmt_pub_trans = 0.0, 
+                b2_mob_pmt_pub_trans = 0.0, b3_mob_pmt_pub_trans = 0.0, 
+                b2_mob_pmt_moto = 0.0, b3_mob_pmt_moto = 0.0, 
+                sd_2 = 0.1, sd_3 = 0.2)
 
-# Function to calculate probabilities
-calculate_probabilities <- function(betas, individual) {
-  
-  # Initialize matrix to store probabilities
-  benchmark <- matrix(NA,
-                      nrow = nrow(betas), 
-                      ncol = 3)
-  
-  # Define the attributes used in the model
-  attributes <- names(individual)
-  
-  # Loop through each set of simulated betas
-  for (i in 1:nrow(betas)) {
-    
-    # Calculate utility for alt1 ####
-    V_alt1 <- betas[i, "asc_1"         ] +
-      betas[i,"b1_hh_foreign"          ] * individual$hh_foreign           +
-      betas[i,"b1_hh_oneperson"        ] * individual$hh_oneperson         +
-      betas[i,"b1_hh_singleparent"     ] * individual$hh_singleparent      +
-      betas[i,"b1_hh_twoadultsalone"   ] * individual$hh_twoadultsalone    +
-      betas[i,"b1_hh_twoadultsandchild"] * individual$hh_twoadultsandchild +
-      betas[i,"b1_hh_num_members"      ] * individual$hh_num_members       +
-      betas[i,"b1_hh_num_minors"       ] * individual$hh_num_minors        +
-      betas[i,"b1_hh_propmale18"       ] * individual$hh_propmale18        +
-      betas[i,"b1_hh_meanage18"        ] * individual$hh_meanage18         +
-      betas[i,"b1_hh_some_higheduc"    ] * individual$hh_some_higheduc     +
-      betas[i,"b1_hh_all_higheduc"     ] * individual$hh_all_higheduc      +
-      betas[i,"b1_inc_1_to_2_thous"    ] * individual$inc_1_to_2_thous     +
-      betas[i,"b1_inc_2_to_3_thous"    ] * individual$inc_2_to_3_thous     +
-      betas[i,"b1_inc_3_to_5_thous"    ] * individual$inc_3_to_5_thous     +
-      betas[i,"b1_inc_more_5_thous"    ] * individual$inc_more_5_thous     +
-      betas[i,"b1_ws_all_work"         ] * individual$ws_all_work          +
-      betas[i,"b1_ws_none_work"        ] * individual$ws_none_work         +
-      betas[i,"b1_wp_ownhome"          ] * individual$wp_ownhome           +
-      betas[i,"b1_wp_myprovince"       ] * individual$wp_myprovince        +
-      betas[i,"b1_wp_otherplace"       ] * individual$wp_otherplace        +
-      betas[i,"b1_com_20_to_39_min"    ] * individual$com_20_to_39_min     +
-      betas[i,"b1_com_40_to_59_min"    ] * individual$com_40_to_59_min     +
-      betas[i,"b1_com_more_1_hour"     ] * individual$com_more_1_hour      +
-      betas[i,"b1_com_num_trips"       ] * individual$com_num_trips        +
-      betas[i,"b1_geo_50_100_thous"    ] * individual$geo_50_100_thous     +
-      betas[i,"b1_geo_100_500_thous"   ] * individual$geo_100_500_thous    +
-      betas[i,"b1_geo_more_500_thous"  ] * individual$geo_more_500_thous   +
-      betas[i,"b1_geo_barcelona"       ] * individual$geo_barcelona        +
-      betas[i,"b1_geo_madrid"          ] * individual$geo_madrid           +
-      betas[i,"b1_geo_services"        ] * individual$geo_services         +
-      betas[i,"b1_h_secondhome"        ] * individual$h_secondhome         +
-      betas[i,"b1_h_ownership"         ] * individual$h_ownership          +
-      betas[i,"b1_h_rental"            ] * individual$h_rental             +
-      betas[i,"b1_h_park_slot"         ] * individual$h_park_slot          +
-      betas[i,"b1_h_detached"          ] * individual$h_detached           +
-      betas[i,"b1_mob_pmt_pub_trans"   ] * individual$mob_pmt_pub_trans    
-    
-    # Calculate utility for alt2 ####
-    V_alt2 <- rep(0, i)
-    
-    # Calculate utility for alt3 ####
-    V_alt3 <- betas[i, "asc_3"] +
-      betas[i, "b3_hh_foreign"          ] * individual$hh_foreign           +
-      betas[i, "b3_hh_oneperson"        ] * individual$hh_oneperson         +
-      betas[i, "b3_hh_singleparent"     ] * individual$hh_singleparent      +
-      betas[i, "b3_hh_twoadultsalone"   ] * individual$hh_twoadultsalone    +
-      betas[i, "b3_hh_twoadultsandchild"] * individual$hh_twoadultsandchild +
-      betas[i, "b3_hh_num_members"      ] * individual$hh_num_members       +
-      betas[i, "b3_hh_num_minors"       ] * individual$hh_num_minors        +
-      betas[i, "b3_hh_propmale18"       ] * individual$hh_propmale18        +
-      betas[i, "b3_hh_meanage18"        ] * individual$hh_meanage18         +
-      betas[i, "b3_hh_some_higheduc"    ] * individual$hh_some_higheduc      +
-      betas[i, "b3_hh_all_higheduc"     ] * individual$hh_all_higheduc      +
-      betas[i, "b3_inc_1_to_2_thous"    ] * individual$inc_1_to_2_thous     +
-      betas[i, "b3_inc_2_to_3_thous"    ] * individual$inc_2_to_3_thous     +
-      betas[i, "b3_inc_3_to_5_thous"    ] * individual$inc_3_to_5_thous     +
-      betas[i, "b3_inc_more_5_thous"    ] * individual$inc_more_5_thous     +
-      betas[i, "b3_ws_all_work"         ] * individual$ws_all_work          +
-      betas[i, "b3_ws_none_work"        ] * individual$ws_none_work         +
-      betas[i, "b3_wp_ownhome"          ] * individual$wp_ownhome           +
-      betas[i, "b3_wp_myprovince"       ] * individual$wp_myprovince        +
-      betas[i, "b3_wp_otherplace"       ] * individual$wp_otherplace        +
-      betas[i, "b3_com_20_to_39_min"    ] * individual$com_20_to_39_min     +
-      betas[i, "b3_com_40_to_59_min"    ] * individual$com_40_to_59_min     +
-      betas[i, "b3_com_more_1_hour"     ] * individual$com_more_1_hour      +
-      betas[i, "b3_com_num_trips"       ] * individual$com_num_trips        +
-      betas[i, "b3_geo_50_100_thous"    ] * individual$geo_50_100_thous     +
-      betas[i, "b3_geo_100_500_thous"   ] * individual$geo_100_500_thous    +
-      betas[i, "b3_geo_more_500_thous"  ] * individual$geo_more_500_thous   +
-      betas[i, "b3_geo_barcelona"       ] * individual$geo_barcelona        +
-      betas[i, "b3_geo_madrid"          ] * individual$geo_madrid           +
-      betas[i, "b3_geo_services"        ] * individual$geo_services         +
-      betas[i, "b3_h_secondhome"        ] * individual$h_secondhome         +
-      betas[i, "b3_h_ownership"         ] * individual$h_ownership          +
-      betas[i, "b3_h_rental"            ] * individual$h_rental             +
-      betas[i, "b3_h_park_slot"         ] * individual$h_park_slot          +
-      betas[i, "b3_h_detached"          ] * individual$h_detached           +
-      betas[i, "b3_mob_other_vehi"      ] * individual$mob_other_vehi       +
-      betas[i, "b3_mob_pmt_priv_car"    ] * individual$mob_pmt_priv_car     +
-      betas[i, "b3_mob_pmt_pub_trans"   ] * individual$mob_pmt_pub_trans    +
-      betas[i, "b3_mob_pmt_moto"        ] * individual$mob_pmt_moto    
-    
-    # Compute exponentiation of utilities
-    exp_V_alt1 <- exp(V_alt1)
-    exp_V_alt3 <- exp(V_alt3)
-    
-    # Compute denominator of the choice probability formula
-    denominator <- exp_V_alt1 + 1 + exp_V_alt3
-    
-    # Compute choice probabilities
-    prob_alt1 <- exp_V_alt1 / denominator
-    prob_alt2 <- 1          / denominator
-    prob_alt3 <- exp_V_alt3 / denominator
-    
-    # Store probabilities in the matrix
-    benchmark[i, ] <- c(prob_alt1, prob_alt2, prob_alt3)
-  }
-  
-  # Return the matrix of probabilities benchmark
-  return(benchmark)
+
+apollo_fixed = c("asc_2", "b2_hh_foreign", "b2_hh_oneperson", "b2_hh_singleparent", "b2_hh_twoadultsalone", 
+                 "b2_hh_twoadultsandchild", "b2_hh_num_members", "b2_hh_num_minors", "b2_hh_propmale18", 
+                 "b2_hh_meanage18", "b2_hh_some_higheduc", "b2_hh_all_higheduc", "b2_inc_1_to_2_thous",
+                 "b2_inc_2_to_3_thous", "b2_inc_3_to_5_thous", "b2_inc_more_5_thous", "b2_ws_all_work", 
+                 "b2_ws_none_work", "b2_wp_ownhome", "b2_wp_myprovince", "b2_wp_otherplace", "b2_com_20_to_39_min", 
+                 "b2_com_40_to_59_min", "b2_com_more_1_hour", "b2_com_num_trips", "b2_geo_50_100_thous", 
+                 "b2_geo_100_500_thous", "b2_geo_more_500_thous", "b2_geo_barcelona", "b2_geo_madrid", 
+                 "b2_geo_services", "b2_h_secondhome", "b2_h_ownership", "b2_h_rental", "b2_h_park_slot", 
+                 "b2_h_detached", "b2_mob_other_vehi", "b2_mob_pmt_priv_car", "b2_mob_pmt_pub_trans", "b2_mob_pmt_moto") 
+
+apollo_draws = list(
+  interDrawsType = "sobol",
+  interNDraws    = 1000, 
+  interUnifDraws = c(),
+  interNormDraws = c("draws_2", "draws_3")
+)
+
+apollo_randCoeff = function(apollo_beta, apollo_inputs){
+  randcoeff = list()
+  randcoeff[["r_2"]] = sd_2 * apollo_inputs$draws$draws_2 # notation needed for AME computation
+  randcoeff[["r_3"]] = sd_3 * apollo_inputs$draws$draws_3 # same
+  return(randcoeff)
 }
 
-# Compute probabilities & mean values for each alternative
-benchmark <- as.data.frame(calculate_probabilities(betas, 
-                                                   individual))
-means     <- colMeans(benchmark, 
-                      na.rm = TRUE)
-
-# Replace the original columns and transpose them
-benchmark <- data.frame(t(means))
-
-# Rename row and column names
-rownames(benchmark) <- "benchmark"
-colnames(benchmark) <- c("alt1", "alt2", "alt3")
-
-
-# [20] Make changes in attributes and recompute probabilities ----
-
-## [1 to 0] hh_foreign ####
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_foreign <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-changes <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] hh_foreign", "[1 to 0] hh_foreign", "[1 to 0] hh_foreign") 
-)
-
-## Subgroup: Type of family [benchmark set to hh_twoadultsalone] ####
-
-### [0 to 1] hh_oneperson ####
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_oneperson <- 1
-
-# Adjust intra-group vars
-individual$hh_twoadultsalone <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] hh_oneperson", "[0 to 1] hh_oneperson", "[0 to 1] hh_oneperson") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] hh_singleparent ####   
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_singleparent <- 1
-
-# Adjust intra-group variables
-individual$hh_twoadultsalone <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] hh_singleparent", "[0 to 1] hh_singleparent", "[0 to 1] hh_singleparent") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [1 to 0] hh_twoadultsalone ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_twoadultsalone <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] hh_twoadultsalone", "[1 to 0] hh_twoadultsalone", "[1 to 0] hh_twoadultsalone") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [1 to 0] hh_twoadultsandchild ####            
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_twoadultsandchild <- 1
-
-# Adjust intra-group variables
-individual$hh_twoadultsalone <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] hh_twoadultsandchild", "[0 to 1] hh_twoadultsandchild", "[0 to 1] hh_twoadultsandchild") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## [+1sd] hh_num_members ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes: 2 + 1
-individual$hh_num_members <-  round(median(database$hh_num_members)) + round(sd(database$hh_num_members))
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[+1sd] hh_num_members", "[+1sd] hh_num_members", "[+1sd] hh_num_members") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## [+1sd] hh_num_minors ####              
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes: 0+1
-individual$hh_num_minors <-  0 + round(sd(database$hh_num_minors))
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[+1sd] hh_num_minors", "[+1sd] hh_num_minors", "[+1sd] hh_num_minors") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## [+1sd] hh_propmale18 ####    
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_propmale18 <-  median(database$hh_propmale18) + sd(database$hh_propmale18)
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[+1sd] hh_propmale18", "[+1sd] hh_propmale18", "[+1sd] hh_propmale18") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-
-## [+1sd] hh_meanage18 ####     
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_meanage18 <-  median(database$hh_meanage18) + sd(database$hh_meanage18)
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[+1sd] hh_meanage18", "[+1sd] hh_meanage18", "[+1sd] hh_meanage18") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## Subgroup: High education attainment [benchmark set to hh_all_higheduc] ####
-### [0 to 1] hh_somehigheduc ####   
-
-# Reset individual
-load("individual.RData")
-
-
-# Manually set changes
-individual$hh_some_higheduc <- 1
-
-# Adjust intra-group variables
-individual$hh_all_higheduc <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] hh_some_higheduc", "[0 to 1] hh_some_higheduc", "[0 to 1] hh_some_higheduc") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [1 to 0] hh_all_higheduc ####     
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$hh_all_higheduc <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] hh_all_higheduc", "[1 to 0] hh_all_higheduc", "[1 to 0] hh_all_higheduc") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## Subgroup: Income [benchmark set to inc_more_5_thous] ####
-### [0 to 1] inc_1_to_2_thous ####   
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$inc_1_to_2_thous <- 1
-
-# Adjust intra-group variables
-individual$inc_more_5_thous <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] inc_1_to_2_thous", "[0 to 1] inc_1_to_2_thous", "[0 to 1] inc_1_to_2_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] inc_2_to_3_thous ####    
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$inc_2_to_3_thous <- 1
-
-# Adjust intra-group variables
-individual$inc_more_5_thous <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] inc_2_to_3_thous", "[0 to 1] inc_2_to_3_thous", "[0 to 1] inc_2_to_3_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] inc_3_to_5_thous ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$inc_3_to_5_thous <- 1
-
-# Adjust intra-group variables
-individual$inc_more_5_thous <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] inc_3_to_5_thous", "[0 to 1] inc_3_to_5_thous", "[0 to 1] inc_3_to_5_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [1 to 0] inc_more_5_thous ####    
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$inc_more_5_thous <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] inc_more_5_thous", "[1 to 0] inc_more_5_thous", "[1 to 0] inc_more_5_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## Subgroup: Working status[benchmark set to "some work"] ####
-### [0 to 1] ws_all_work ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$ws_all_work <- 1
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] ws_all_work", "[0 to 1] ws_all_work", "[0 to 1] ws_all_work") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] ws_none_work ####     
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$ws_none_work <- 1
-
-# Adjust intra-group variables
-#individual$ws_all_work <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] ws_none_work", "[0 to 1] ws_none_work", "[0 to 1] ws_none_work") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## Subgroup: Working place [benchmark set to wp_otherplace] ####
-### [0 to 1] wp_ownhome ####   
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$wp_ownhome <- 1
-
-# Adjust intra-group variables
-individual$wp_otherplace <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] wp_ownhome", "[0 to 1] wp_ownhome", "[0 to 1] wp_ownhome") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] wp_myprovince ####   
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$wp_myprovince <- 1
-
-# Adjust intra-group variables
-individual$wp_otherplace <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] wp_myprovince", "[0 to 1] wp_myprovince", "[0 to 1] wp_myprovince") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] wp_otherplace #### 
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace to 0
-individual$wp_otherplace <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] wp_otherplace", "[1 to 0] wp_otherplace", "[1 to 0] wp_otherplace") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## Subgroup: Commutement time [benchmark set to com_20_to_39_min] ####
-### [1 to 0] com_20_to_39_min ####         
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$com_20_to_39_min <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] com_20_to_39_min", "[1 to 0] com_20_to_39_min", "[1 to 0] com_20_to_39_min") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-### [0 to 1] com_40_to_59_min ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$com_40_to_59_min <- 1
-
-# Adjust intra-group variables
-individual$com_20_to_39_min <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] com_40_to_59_min", "[0 to 1] com_40_to_59_min", "[0 to 1] com_40_to_59_min") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] com_more_1_hour #### 
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$com_more_1_hour <- 1
-
-# Adjust intra-group variables
-individual$com_20_to_39_min <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] com_more_1_hour", "[0 to 1] com_more_1_hour", "[0 to 1] com_more_1_hour") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## [+1sd] com_num_trips ####      
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$com_num_trips <-  median(database$com_num_trips) + round(sd(database$com_num_trips))
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[+1sd] com_num_trips", "[+1sd] com_num_trips", "[+1sd] com_num_trips") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## Subgroup: Municipalty size[benchmark set to geo_50_100_thous]  ####
-### [1 to 0] geo_50_100_thous ####
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$geo_50_100_thous <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] geo_50_100_thous", "[1 to 0] geo_50_100_thous", "[1 to 0] geo_50_100_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] geo_100_500_thous ####
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$geo_100_500_thous <- 1
-
-# Adjust intra-group variables
-individual$geo_50_100_thous <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] geo_100_500_thous", "[0 to 1] geo_100_500_thous", "[0 to 1] geo_100_500_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1]geo_more_500_thous ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$geo_more_500_thous <- 1
-
-# Adjust intra-group variables
-individual$geo_50_100_thous <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] geo_more_500_thous", "[0 to 1] geo_more_500_thous", "[0 to 1] geo_more_500_thous") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## [0 to 1] geo_barcelona ####
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$geo_barcelona <- 1
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] geo_barcelona", "[0 to 1] geo_barcelona", "[0 to 1] geo_barcelona") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## [0 to 1] geo_madrid ####    
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$geo_madrid <- 1
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] geo_madrid", "[0 to 1] geo_madrid", "[0 to 1] geo_madrid") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## [5 to 0] geo_services #### 
-
-# Reset individual
-load("individual.RData")
-
-# Manually set to zero services available
-individual$geo_services <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[5 to 0] geo_services", "[5 to 0] geo_services", "[5 to 0] geo_services") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## [1 to 0] h_secondhome ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$h_secondhome <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] h_secondhome", "[1 to 0] h_secondhome", "[1 to 0] h_secondhome") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-# Subgroup: Housing tenure status [benchmark: h_ownership]
-## [1 to 0] h_ownership ####              
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$h_ownership <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] h_ownership", "[1 to 0] h_ownership", "[1 to 0] h_ownership") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-## [0 to 1] h_rental ####   
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$h_rental <- 1
-
-# Adjust intra-group variables
-individual$h_ownership <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] h_rental", "[0 to 1] h_rental", "[0 to 1] h_rental") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## [1 to 0] h_park_slot ####  
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$h_park_slot <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] h_park_slot", "[1 to 0] h_park_slot", "[1 to 0] h_park_slot") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-
-## [1 to 0] h_detached ####    
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$h_detached <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] h_detached", "[1 to 0] h_detached", "[1 to 0] h_detached") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## [1 to 0] mob_other_vehi #### 
-
-# Reset individual
-load("individual.RData")
-
-# Manually set wp_otherplace
-individual$mob_other_vehi <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] mob_other_vehi", "[1 to 0] mob_other_vehi", "[1 to 0] mob_other_vehi") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-
-## Subgroup: Principal mode transportation [benchmark: mob_pmt_priv_car] ####
-### [1 to 0] mob_pmt_priv_car ####
-
-# Reset individual
-load("individual.RData")
-
-# Manually set changes
-individual$mob_pmt_priv_car <- 0
-
-# Adjust intra-group variables
-# Not needed
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[1 to 0] mob_pmt_priv_car", "[1 to 0] mob_pmt_priv_car", "[1 to 0] mob_pmt_priv_car") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df)
-
-### [0 to 1] mob_pmt_pub_trans ####   
-
-# Reset individual
-load("individual.RData")
-
-
-# Manually set wp_otherplace
-individual$mob_pmt_pub_trans <- 1
-
-# Adjust intra-group variables
-individual$mob_pmt_priv_car <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] mob_pmt_pub_trans", "[0 to 1] mob_pmt_pub_trans", "[0 to 1] mob_pmt_pub_trans") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df) 
-
-### [0 to 1] mob_pmt_moto ####  
-
-# Reset individual
-load("individual.RData")
-
-
-# Manually set wp_otherplace
-individual$mob_pmt_moto <- 1
-
-# Adjust intra-group variables
-individual$mob_pmt_priv_car <- 0
-
-# Compute probabilities
-recomputed           <- as.data.frame(calculate_probabilities(betas, individual))
-colnames(recomputed) <- c("alt1", "alt2", "alt3")
-
-# Calculate mean values and transpose
-recomputed <- as.data.frame(colMeans(recomputed, na.rm = TRUE))
-recomputed <- t(recomputed)
-
-# Compute differences
-diff1 <- recomputed[, 1] - benchmark[, 1]
-diff2 <- recomputed[, 2] - benchmark[, 2]
-diff3 <- recomputed[, 3] - benchmark[, 3]
-
-# Create dataframe
-df <- data.frame(
-  OR  = c(diff1, diff2, diff3),
-  var = c("[0 to 1] mob_pmt_moto", "[0 to 1] mob_pmt_moto", "[0 to 1] mob_pmt_moto") 
-)
-
-# Append to changes dataframe
-changes <- rbind(changes, df) 
-
-# [21] Prepare data to plot ----
-
-rownames(changes) <- NULL
-
-changes$ALT <- rep(1:3)
-
-# Create ALT labels 
-changes$ALT_label <- factor(changes$ALT, 
-                            levels = c(1, 2, 3), 
-                            labels = c("No vehicle", 
-                                       "Fuel vehicle", 
-                                       "Clean vehicle"))
-
-# Determine the unique ALT levels and the number of levels
-alt_levels <- unique(changes$ALT)
-
-# Create subsets of data for each ALT
-alt1 <- subset(changes, ALT == 1)
-alt2 <- subset(changes, ALT == 2)
-alt3 <- subset(changes, ALT == 3)
-
-
-# Clean workspace & free local memory usage
-
-rm(list = c("apollo_control",
-            "apollo_beta",
-            "apollo_fixed",
-            "diff1", "diff2", "diff3",
-            "means",
-            "apollo_probabilities",
-            "apollo_randCoeff",
-            "calculate_probabilities",
-            "apollo_draws",
-            "apollo_inputs",
-            "database",
-            "df",
-            "model",
-            "recomputed",
-            "betas",
-            "alt_levels"))
-
-gc()
-
-
-# [22] Plot average changes in probabilities
-## [22.1] "Figure 1. Effects of attribute changes on Clean Vehicle choice probability" ----
-
-figure1 <- ggplot(data     = alt3, 
-                     aes(x = OR, 
-                         y = reorder(var, -OR))) +
+apollo_inputs = apollo_validateInputs()
+
+apollo_probabilities=function(apollo_beta,
+                              apollo_inputs,
+                              functionality = "estimate"){
   
-  geom_vline(xintercept = 0, 
-             linetype   = "dashed", 
-             color      = "grey50") +
+  ### Attach inputs and detach after function exit
+  apollo_attach(apollo_beta, apollo_inputs)
+  on.exit(apollo_detach(apollo_beta, apollo_inputs))
   
-  geom_point(size      = 4, 
-             aes(color = ifelse(grepl("^\\[1 to 0\\]", var) | var == "[5 to 0] geo_services", "grey65",
-                                "black"))) +
+  ### UTILITY EQUATIONS *************************************
   
-  labs(title    = "",
-       subtitle = "",
-       x = "Change in probability",
-       y = "") +
+  ### List of utilities: these must use the same names as in mnl_settings
+  V = list()
   
-  theme_light(base_size   = 14, 
-              base_family = "serif") +
+  #### V[["alt1"]] ####
+  V[["alt1"]]  = asc_1                             +
+    b1_hh_foreign           * hh_foreign           +
+    b1_hh_oneperson         * hh_oneperson         +
+    b1_hh_singleparent      * hh_singleparent      +
+    b1_hh_twoadultsalone    * hh_twoadultsalone    +
+    b1_hh_twoadultsandchild * hh_twoadultsandchild +
+    b1_hh_num_members       * hh_num_members       +
+    b1_hh_num_minors        * hh_num_minors        +
+    
+    b1_hh_propmale18        * hh_propmale18        +
+    b1_hh_meanage18         * hh_meanage18         +
+    b1_hh_some_higheduc     * hh_some_higheduc     +
+    b1_hh_all_higheduc      * hh_all_higheduc      +
+    
+    b1_inc_1_to_2_thous     * inc_1_to_2_thous     +
+    b1_inc_2_to_3_thous     * inc_2_to_3_thous     +
+    b1_inc_3_to_5_thous     * inc_3_to_5_thous     +
+    b1_inc_more_5_thous     * inc_more_5_thous     +
+    
+    b1_ws_all_work          * ws_all_work          +
+    b1_ws_none_work         * ws_none_work         +
+    
+    b1_wp_ownhome           * wp_ownhome           +
+    b1_wp_myprovince        * wp_myprovince        +
+    b1_wp_otherplace        * wp_otherplace        +
+    
+    b1_com_20_to_39_min     * com_20_to_39_min     +
+    b1_com_40_to_59_min     * com_40_to_59_min     +
+    b1_com_more_1_hour      * com_more_1_hour      +
+    b1_com_num_trips        * com_num_trips        +
+    
+    b1_geo_50_100_thous     * geo_50_100_thous     +
+    b1_geo_100_500_thous    * geo_100_500_thous    +
+    b1_geo_more_500_thous   * geo_more_500_thous   +
+    
+    b1_geo_barcelona        * geo_barcelona        +
+    b1_geo_madrid           * geo_madrid           + 
+    
+    b1_geo_services         * geo_services         +
+    
+    b1_h_secondhome         * h_secondhome         +
+    b1_h_ownership          * h_ownership          +
+    b1_h_rental             * h_rental             +
+    b1_h_park_slot          * h_park_slot          +
+    b1_h_detached           * h_detached           +
+    
+    # b1_mob_other_vehi     * mob_other_vehi       + # Not in this alternative
+    # b1_mob_pmt_priv_car   * mob_pmt_priv_car     + # Not in this alternative
+    b1_mob_pmt_pub_trans    * mob_pmt_pub_trans    
+  # b1_mob_pmt_moto       * mob_pmt_moto           # Not in this alternative
   
-  theme(plot.title = element_text(size   = 0, 
-                                  face   = "bold", 
-                                  hjust  = 0.5, 
-                                  family = "sans", 
-                                  margin = margin(b = 10)),
-        plot.subtitle = element_text(size   = 0, 
-                                     face   = "italic", 
-                                     hjust  = 0.5, 
-                                     family = "serif", 
-                                     margin = margin(b = 10)),
-        axis.title.x = element_text(size    = 20, 
-                                    family  = "serif", 
-                                    margin  = margin(t = 20)),
-        axis.text.x = element_text(size   = 20,
-                                   family = "serif"),
-        axis.text.y = element_text(size   = 20, 
-                                   family = "serif"),
-        legend.text = element_text(size   = 20, 
-                                   family = "serif"),
-        legend.spacing.y = unit(2, "cm"),
-        legend.key.height = unit(1, "cm"),
-        legend.title = element_text(size   = 19, 
-                                    face   = "bold", 
-                                    family = "sans"), 
-        
-        panel.grid.major = element_line(color = "grey80"),  
-        panel.grid.minor = element_line(color = "grey82"),  
-        panel.background = element_rect(fill = "white"),    
-        panel.border = element_blank()) + 
   
-  scale_color_manual(values = c("grey65" = "grey65", 
-                                "black" = "black"), 
-                     name = "Change type",
-                     labels = c("[0-1], [+1sd]", 
-                                "[1-0], [5-0]")) +
+  #### V[["alt2"]] ####
+  V[["alt2"]]  = asc_2                             +
+    b2_hh_foreign           * hh_foreign           +
+    b2_hh_oneperson         * hh_oneperson         +
+    b2_hh_singleparent      * hh_singleparent      +
+    b2_hh_twoadultsalone    * hh_twoadultsalone    +
+    b2_hh_twoadultsandchild * hh_twoadultsandchild +
+    b2_hh_num_members       * hh_num_members       +
+    b2_hh_num_minors        * hh_num_minors        +
+    
+    b2_hh_propmale18        * hh_propmale18        +
+    b2_hh_meanage18         * hh_meanage18         +
+    b2_hh_some_higheduc     * hh_some_higheduc     +
+    b2_hh_all_higheduc      * hh_all_higheduc      +
+    
+    b2_inc_1_to_2_thous     * inc_1_to_2_thous     +
+    b2_inc_2_to_3_thous     * inc_2_to_3_thous     +
+    b2_inc_3_to_5_thous     * inc_3_to_5_thous     +
+    b2_inc_more_5_thous     * inc_more_5_thous     +
+    
+    b2_ws_all_work          * ws_all_work          +
+    b2_ws_none_work         * ws_none_work         +
+    
+    b2_wp_ownhome           * wp_ownhome           +
+    b2_wp_myprovince        * wp_myprovince        +
+    b2_wp_otherplace        * wp_otherplace        +
+    
+    b2_com_20_to_39_min     * com_20_to_39_min     +
+    b2_com_40_to_59_min     * com_40_to_59_min     +
+    b2_com_more_1_hour      * com_more_1_hour      +
+    b2_com_num_trips        * com_num_trips        +
+    
+    b2_geo_50_100_thous     * geo_50_100_thous     +
+    b2_geo_100_500_thous    * geo_100_500_thous    +
+    b2_geo_more_500_thous   * geo_more_500_thous   +
+    
+    b2_geo_barcelona        * geo_barcelona        +
+    b2_geo_madrid           * geo_madrid           + 
+    
+    b2_geo_services         * geo_services         +
+    
+    b2_h_secondhome         * h_secondhome         +
+    b2_h_ownership          * h_ownership          +
+    b2_h_rental             * h_rental             +
+    b2_h_park_slot          * h_park_slot          +
+    b2_h_detached           * h_detached           +
+    
+    b2_mob_other_vehi       * mob_other_vehi       +
+    b2_mob_pmt_priv_car     * mob_pmt_priv_car     +
+    b2_mob_pmt_pub_trans    * mob_pmt_pub_trans    +
+    b2_mob_pmt_moto         * mob_pmt_moto         +
+    
+    r_2 
   
-  coord_cartesian(xlim = c(-0.045, 0.1)) +
+  #### V[["alt3"]] ####
+  V[["alt3"]]  = asc_3                             +
+    b3_hh_foreign           * hh_foreign           +
+    b3_hh_oneperson         * hh_oneperson         +
+    b3_hh_singleparent      * hh_singleparent      +
+    b3_hh_twoadultsalone    * hh_twoadultsalone    +
+    b3_hh_twoadultsandchild * hh_twoadultsandchild +
+    b3_hh_num_members       * hh_num_members       +
+    b3_hh_num_minors        * hh_num_minors        +
+    
+    b3_hh_propmale18        * hh_propmale18        +
+    b3_hh_meanage18         * hh_meanage18         +
+    b3_hh_some_higheduc     * hh_some_higheduc     +
+    b3_hh_all_higheduc      * hh_all_higheduc      +
+    
+    b3_inc_1_to_2_thous     * inc_1_to_2_thous     +
+    b3_inc_2_to_3_thous     * inc_2_to_3_thous     +
+    b3_inc_3_to_5_thous     * inc_3_to_5_thous     +
+    b3_inc_more_5_thous     * inc_more_5_thous     +
+    
+    b3_ws_all_work          * ws_all_work          +
+    b3_ws_none_work         * ws_none_work         +
+    
+    b3_wp_ownhome           * wp_ownhome           +
+    b3_wp_myprovince        * wp_myprovince        +
+    b3_wp_otherplace        * wp_otherplace        +
+    
+    b3_com_20_to_39_min     * com_20_to_39_min     +
+    b3_com_40_to_59_min     * com_40_to_59_min     +
+    b3_com_more_1_hour      * com_more_1_hour      +
+    b3_com_num_trips        * com_num_trips        +
+    
+    b3_geo_50_100_thous     * geo_50_100_thous     +
+    b3_geo_100_500_thous    * geo_100_500_thous    +
+    b3_geo_more_500_thous   * geo_more_500_thous   +
+    
+    b3_geo_barcelona        * geo_barcelona        +
+    b3_geo_madrid           * geo_madrid           + 
+    
+    b3_geo_services         * geo_services         +
+    
+    b3_h_secondhome         * h_secondhome         +
+    b3_h_ownership          * h_ownership          +
+    b3_h_rental             * h_rental             +
+    b3_h_park_slot          * h_park_slot          +
+    b3_h_detached           * h_detached           +
+    
+    b3_mob_other_vehi       * mob_other_vehi         +
+    b3_mob_pmt_priv_car     * mob_pmt_priv_car       +
+    b3_mob_pmt_pub_trans    * mob_pmt_pub_trans      +
+    b3_mob_pmt_moto         * mob_pmt_moto           +
+    
+    r_2 + r_3
   
-  scale_y_discrete(labels = c("[1 to 0] inc_more_5_thous"     = "Income: More than 5000€ [1-0]",
-                              "[0 to 1] inc_1_to_2_thous"     = "Income: 1000€ to 2000€ [0-1]",
-                              "[0 to 1] inc_2_to_3_thous"     = "Income: 2000€ to 3000€ [0-1]",
-                              "[1 to 0] mob_other_vehi"       = "Other vehicles [1-0]",
-                              "[0 to 1] geo_madrid"           = "Madrid [0-1]",
-                              "[1 to 0] hh_all_higheduc"      = "High education: all [1-0]",
-                              "[1 to 0] geo_50_100_thous"     = "Inhabitants: 50k-100k  [1-0]",
-                              "[0 to 1] mob_pmt_moto"         = "Primary transport: Motorbike [0-1]",
-                              "[0 to 1] inc_3_to_5_thous"     = "Income: 3000€ to 5000€ [0-1]",
-                              "[0 to 1] wp_ownhome"           = "Working place: own home [0-1]",
-                              "[1 to 0] h_park_slot"          = "Parking slot [1-0]",
-                              "[0 to 1] geo_barcelona"        = "Barcelona [0-1]",
-                              "[0 to 1] geo_more_500_thous"   = "Inhabitants: >500k [0-1]",
-                              "[+1sd] hh_num_members"         = "Household members [+1sd]",
-                              "[1 to 0] hh_foreign"           = "Foreign members [1-0]",
-                              "[0 to 1] hh_some_higheduc"     = "High education: some [0-1]",
-                              "[1 to 0] h_detached"           = "Detached house [1-0]",
-                              "[0 to 1] ws_none_work"         = "Working status: none work [0-1]",
-                              "[0 to 1] wp_myprovince"        = "Working place: own province [0-1]",
-                              "[1 to 0] h_secondhome"         = "Second home ownership [1-0]",
-                              "[0 to 1] hh_oneperson"         = "Family type: one person [0-1]",
-                              "[0 to 1] mob_pmt_pub_trans"    = "Primary transport: public transp. [0-1]",
-                              "[0 to 1] h_rental"             = "Housing tenure: rental [0-1]",
-                              "[1 to 0] hh_twoadultsalone"    = "Family type: two adults [1-0]",
-                              "[1 to 0] mob_pmt_priv_car"     = "Primary transport: private car [1-0]",
-                              "[0 to 1] hh_twoadultsandchild" = "Family type: two adults and child [0-1]",
-                              "[0 to 1] com_40_to_59_min"     = "Max. commutement: 40-59 min. [0-1]",
-                              "[1 to 0] wp_otherplace"        = "Working place: other places [1-0]",
-                              "[1 to 0] com_20_to_39_min"     = "Max. commutement: 20-39 min. [1-0]",
-                              "[0 to 1] geo_100_500_thous"    = "Inhabitants: 100k-500k [0-1]",
-                              "[5 to 0] geo_services"         = "Services available [5-0]",
-                              "[+1sd] hh_propmale18"          = "Male >18 proportion [+1sd]",
-                              "[0 to 1] com_more_1_hour"      = "Max. commutement: >1h. [0-1]",
-                              "[0 to 1] ws_all_work"          = "Working status: all work [0-1]",
-                              "[+1sd] com_num_trips"          = "Number of trips [+1sd]",
-                              "[+1sd] hh_num_minors"          = "Number of minors [+1sd]",
-                              "[1 to 0] h_ownership"          = "Housing tenure: ownership [1-0]",
-                              "[0 to 1] hh_singleparent"      = "Family type: single parent [0-1]",
-                              "[+1sd] hh_meanage18"           = "Mean age members >18 [+1sd]")) +
   
-  scale_x_continuous(breaks = c(-0.05, -0.025, 0, 0.025, 0.05, 0.075, 0.1)) 
+  ### Define settings for MNL model component ####
+  mnl_settings = list(
+    alternatives  = c(alt1 = 1, alt2 = 2, alt3 = 3),
+    avail         = 1,
+    choiceVar     = vehitype,
+    V             = V
+  )
+  
+  # ****************************************************************************
+  
+  ### Create list of probabilities P
+  P = list()
+  
+  ### Compute probabilities using MNL model
+  
+  P[["model"]] = apollo_mnl(mnl_settings, functionality)
+  
+  # !! KEY STEP for the AME computation to well-behave:
+  # "raw" returns "P": raw pred. probabilities for each individual/draw
+  # if not, apollo averages the random components of the draws and CIs cannot
+  # be computed:
+  if (functionality == "raw") return(P)  # !! 
+  
+  # The rest, as in apollo estimation:
+  ### Account for the weights
+  P = apollo_weighting(P, apollo_inputs, functionality)
+  
+  ### Average across inter-individual draws
+  P = apollo_avgInterDraws(P, apollo_inputs, functionality)
+  
+  
+  ### Prepare and return outputs of function
+  # if (functionality == "raw") {
+  #   return(P)  # skip apollo_prepareProb() and averaging
+  # }
+  
+  P = apollo_prepareProb(P, apollo_inputs, functionality)
+  return(P)
+}
 
+gc() # keep environment clean & memory usage low
 
-# Save the plot as a SVG
-ggsave("Figure_1.svg", 
-       plot   = figure1, 
-       width  = 31, 
-       #       height = 15, 
-       height = 12,
-       units  = "in", 
-       dpi    = 300)
+# == [C] Define and differentiate types of variables in the model ==============
 
+numeric_vars <- c("hh_num_members","hh_num_minors","hh_propmale18",  
+                  "hh_meanage18", "com_num_trips", "geo_services") 
 
-## [22.2] "Figure 2. Effects of income changes on Clean Vehicle choice probability" ----
+est_names  <- names(model$estimate) # extract names from estimated parameters
+model_vars <- unique(gsub("^(b[1-3]_)?", "", est_names)) # remove prefixes
 
-figure2 <- ggplot(data = alt3 %>% filter(var %in% c("[0 to 1] inc_1_to_2_thous", 
-                                                    "[0 to 1] inc_2_to_3_thous", 
-                                                    "[0 to 1] inc_3_to_5_thous", 
-                                                    "[1 to 0] inc_more_5_thous")),
-                  aes(x = OR, 
-                      y = reorder(var, case_when(
-                        var == "[1 to 0] inc_more_5_thous" ~ 1,
-                        var == "[0 to 1] inc_1_to_2_thous" ~ 2,
-                        var == "[0 to 1] inc_2_to_3_thous" ~ 3,
-                        var == "[0 to 1] inc_3_to_5_thous" ~ 4
-                      )))) +  
-  
-  geom_vline(xintercept = 0, 
-             linetype   = "dashed", 
-             color      = "grey50") +
-  
-  geom_point(size = 2, color = "black") +
-  
-  geom_point(aes(x = 0.00, 
-                 y = 5), 
-             shape = 8, 
-             size  = 3, 
-             color = "black") +
-  
-  labs(title    = "",
-       subtitle = " ",
-       x = "Change in probability",
-       y = "") +
-  
-  theme_light(base_size   = 14, 
-              base_family = "serif") +
-  
-  theme(plot.title = element_text(size      = 15, 
-                                  face      = "bold", 
-                                  hjust     = 0.5, 
-                                  family    = "sans", 
-                                  margin    = margin(b = 10)),
-        plot.subtitle = element_text(size   = 11, 
-                                     face   = "italic", 
-                                     hjust  = 0.5, 
-                                     family = "serif", 
-                                     margin = margin(b = 10)),
-        axis.title.x = element_text(size    = 13, 
-                                    family  = "serif",
-                                    margin  = margin(t = 10)),
-        axis.text.x = element_text(size     = 12, 
-                                   family   = "serif", 
-                                   angle    = 0, 
-                                   hjust    = 0.5), 
-        axis.text.y = element_text(size     = 11, 
-                                   family   = "serif"),
-        axis.title.y = element_text(size    = 11,
-                                    family  = "serif",
-                                    margin  = margin(t = 10)),
-        legend.position = "none") + 
-  
-  coord_flip() +  
-  
-  scale_x_continuous(limits = c(-0.045, 0.01)) +  
-  
-  scale_y_discrete(limits = c("[1 to 0] inc_more_5_thous",
-                              "[0 to 1] inc_1_to_2_thous",
-                              "[0 to 1] inc_2_to_3_thous",
-                              "[0 to 1] inc_3_to_5_thous",
-                              "new_obs"),
-                   labels = c("[1 to 0] inc_more_5_thous" = "<1,000€",
-                              "[0 to 1] inc_1_to_2_thous" = "1,000€ to 2,000€",
-                              "[0 to 1] inc_2_to_3_thous" = "2,000€ to 3,000€",
-                              "[0 to 1] inc_3_to_5_thous" = "3,000€ to 5,000€",
-                              "new_obs" = ">5,000€"))
+ignore_vars <- c("asc_1", "asc_2", "asc_3", "sd_2", "sd_3") # not variables
+model_vars <- setdiff(model_vars, ignore_vars) # ignore them
 
-# Save the plot as a SVG
-ggsave("PLOT_02_income.svg", 
-       plot   = p_income, 
-       width  = 11, 
-       height = 3, 
-       units  = "in", 
-       dpi    = 300)
+choice_var <- "vehitype" # remove "vehitype" (choice variable) also
+model_vars <- setdiff(model_vars, choice_var) # ignore it
 
+dummy_vars <- setdiff(model_vars, numeric_vars) # dummy variables
 
-## [22.3] "Figure 3. Effects of high education attainment changes on Clean Vehicle Choice Probability" ----
+dummy_groups <- list( # identify dummies that are part of a group of variables
+  hh_type  = c("hh_oneperson", "hh_singleparent", "hh_twoadultsalone", "hh_twoadultsandchild"), 
+  hh_edu   = c("hh_some_higheduc", "hh_all_higheduc"), 
+  income   = c("inc_1_to_2_thous", "inc_2_to_3_thous", "inc_3_to_5_thous", "inc_more_5_thous"), 
+  workstat = c("ws_all_work", "ws_none_work"), 
+  workloc  = c("wp_ownhome", "wp_myprovince", "wp_otherplace"), 
+  commute  = c("com_20_to_39_min", "com_40_to_59_min", "com_more_1_hour"), 
+  geo_size = c("geo_50_100_thous", "geo_100_500_thous", "geo_more_500_thous"), 
+  city     = c("geo_barcelona", "geo_madrid"), 
+  housing  = c("h_ownership", "h_rental"), 
+  modetra  = c("mob_pmt_priv_car", "mob_pmt_pub_trans", "mob_pmt_moto") ) 
 
-figure3 <- ggplot(data = alt3 %>% 
-                    filter(var %in% c("[1 to 0] hh_all_higheduc",
-                                      "[0 to 1] hh_some_higheduc")) %>%
-                    mutate(facet_label = case_when(
-                      var == "[1 to 0] hh_all_higheduc"   ~ "High education: none\n [Model baseline]",
-                      var == "[0 to 1] hh_some_high_educ" ~ "High education: some",
-                      TRUE ~ NA_character_
-                    )),
-                  aes(x = OR, 
-                      y = reorder(var, case_when(
-                        var == "[1 to 0] hh_all_higheduc"  ~ 1,
-                        var == "[0 to 1] hh_some_higheduc" ~ 2,
-                        var == "new_obs" ~ 3 
-                      )))) +  
-  
-  geom_vline(xintercept = 0, 
-             linetype   = "dashed", 
-             color      = "grey50") +
-  
-  geom_point(size  = 2.5, 
-             color = "black") +
-  
-  geom_point(aes(x = 0.00, 
-                 y = 3), 
-             shape = 8, 
-             size  = 3, 
-             color = "black") +  
-  
-  labs(title    = "",
-       subtitle = "",
-       x = "Change in probability",
-       y = "") +
-  
-  theme_light(base_size   = 14, 
-              base_family = "serif") +  
-  
-  theme(plot.title = element_text(size      = 15, 
-                                  face      = "bold", 
-                                  hjust     = 0.5, 
-                                  family    = "sans", 
-                                  margin    = margin(b = 10)),
-        plot.subtitle = element_text(size   = 11, 
-                                     face   = "italic", 
-                                     hjust  = 0.5, 
-                                     family = "serif", 
-                                     margin = margin(b = 10)),
-        axis.title.x = element_text(size    = 13, 
-                                    family  = "serif",
-                                    margin  = margin(t = 10)),
-        axis.text.x = element_text(size     = 12, 
-                                   family   = "serif", 
-                                   angle    = 0, 
-                                   hjust    = 0.5), 
-        axis.text.y = element_text(size     = 11, 
-                                   family   = "serif"),
-        axis.title.y = element_text(size    = 11,
-                                    family  = "serif",
-                                    margin  = margin(t = 10)),
-        legend.spacing.y = unit(0.5, "cm"),
-        legend.position = "none") +  
-  
-  coord_flip() +  
-  
-  scale_x_continuous(limits = c(-0.03, 0.005)) +  
-  
-  scale_y_discrete(limits = c("[1 to 0] hh_all_higheduc",
-                              "[0 to 1] hh_some_higheduc",
-                              "new_obs"),
-                   labels = c("[1 to 0] hh_all_higheduc"  = "High education: non",
-                              "[0 to 1] hh_some_higheduc" = "High education: some",
-                              "new_obs"                   = "High education: All"))
+grouped_dummy_vars <- unlist(dummy_groups) # dummies part of a group
+ungrouped_dummy_vars <- setdiff(dummy_vars, grouped_dummy_vars) # standalone ones
 
-# Save the plot as a SVG
-ggsave("PLOT_03_higheduc.svg", 
-       plot   = p_higheduc, 
-       width  = 11, 
-       height = 3, 
-       units  = "in", 
-       dpi    = 300)
+# == [D] Compute AMEs at individual level (with debugging) =====================
 
-# [23] End ----
+## a) Create "V_theta" =========================================================
+
+# Intermediate step needed because "model$estimate" includes alt2 parameters (0)
+# which are not present in robvarcov. 
+# To propagate uncertainty using a multivariate normal distribution using ::MASS,
+# no parameters = 0 can be present in "mu"
+
+theta_hat <- model$estimate        # extract vector of estimated parameters
+est_names <- names(theta_hat)      # extract names of parameters 
+vcov_raw  <- model$robvarcov       # extract robust variance-covariance
+
+# Start a zero matrix to store all parameters
+V_theta <- matrix(0, 
+                  nrow     = length(apollo_beta), 
+                  ncol     = length(apollo_beta),
+                  dimnames = list(names(apollo_beta), names(apollo_beta)))
+
+# Identify estimated parameters with estimated rob-varcov in "vcov_raw"
+common <- intersect(rownames(vcov_raw), names(apollo_beta))
+
+# Insert them in the zero matrix created before
+V_theta[common, common] <- vcov_raw[common, common]
+
+## b) Generate theta draws =====================================================
+
+nSim = 1000 # Using 500 parametric MC simulations
+
+theta_draws <- MASS::mvrnorm( # from a multivariate normal distribution
+  n     = nSim, # nSim times
+  mu    = theta_hat[common],# around the model estimates present in robvarcov 
+  Sigma = V_theta[common, common] # using estimated robvarcov
+)
+
+# == [E] Helper function 1: "getFullTheta" =====================================
+
+# Function to reconstruct full parameter vector
+
+# To revert the previous step and include again parameters fixed to 0 (alt2) and
+# estimate the random coefficients (sd_2 and sd_3) for the simulation
+
+getFullTheta <- function(draw_i, db) {
+  
+  # Start from base theta vector names (all of them, also alt2 ones)
+  theta_full <- apollo_beta
+  
+  # Replace estimated parameters with each simulated draw
+  theta_full[common] <- as.numeric(draw_i)  # ensure it's a numeric vector
+  
+  # Number of individuals in the dataset
+  nInd <- nrow(db)
+  
+  # Simulate individual-level random coefficients 
+  r_2 <- rnorm(nInd, mean = 0, sd = theta_full["sd_2"]) # zero mean and sd model
+  r_3 <- rnorm(nInd, mean = 0, sd = theta_full["sd_3"]) # idem
+  
+  # Return list containing full parameter vector and individual random draws
+  list(theta_full = theta_full, r_2 = r_2, r_3 = r_3)
+}
+
+# == [F] Helper function 2: "computeAMEsForTheta" ==============================
+
+# Computes AMEs for each draw as the change in choice probabilities when a 
+# covariate changes, holding all else constant.
+
+# Inputs:
+#   - theta_i: a list containing
+#       * theta_full: full vector of simulated parameters for the model
+#       * r_2, r_3: previously simulated random coefficients 
+#
+# Output:
+#   - A list where each element corresponds to a variable, containing a matrix 
+#     of marginal effects for each alternative (alt1-alt3) and each observation.
+
+# The function identifies three types of AMEs to compute depending on the type
+# of variable. Those are:
+# [a] Numeric variables: increment by 0.01
+# [b] Standalone dummy variables: from 0 to 1
+# [c] Dummy part of a group: sets all group to 0, puts each dummy to 1 one by one
+
+computeAMEsForTheta <- function(theta_i) {
+  
+  db_orig   <- apollo_inputs$database   # store unaltered database
+  db_mod <- db_orig # create copy of original database to alter
+  
+  theta_vec <- theta_i$theta_full # extract simulated parameters / draw
+  r_2 <- theta_i$r_2 # idem with r_2
+  r_3 <- theta_i$r_3 # idem with r_3
+  
+  # Helper function to compute probabilities for a given database
+  getProbs <- function(db_mod) {
+    
+    apollo_inputs_tmp <- apollo_inputs # create apollo_inputs temporal
+    apollo_inputs_tmp$database <- db_mod # store modified database
+    
+    # Assign r_2 and r_3 to the probability function environment
+    assign("r_2", r_2, envir = environment(apollo_probabilities))
+    assign("r_3", r_3, envir = environment(apollo_probabilities))
+    
+    # Compute raw choice probabilities and create P_raw
+    P_raw <- apollo_probabilities(theta_vec, apollo_inputs_tmp, "raw")
+    
+    # Combine alternatives 1-3 into a matrix
+    #as.matrix(do.call(cbind, P_raw$model[1:3]))
+    colMeans(do.call(cbind, P_raw$model[1:3])) # compute colmeans immediatly and return
+    
+  }
+  
+  # Preallocate matrix to store AMEs 
+  all_vars <- c(numeric_vars, ungrouped_dummy_vars, unlist(dummy_groups))
+  n_vars   <- length(all_vars)
+  n_alts   <- 3
+  res_mat  <- matrix(NA, 
+                     nrow = n_vars, 
+                     ncol = n_alts,
+                     dimnames = list(all_vars, paste0("alt", 1:n_alts)))
+  
+  ## [a] Numeric variables: +1
+  
+  P_orig <- getProbs(db_orig) # compute baseline probs
+  
+  for (var in numeric_vars) {
+    db_mod[[var]] <- db_mod[[var]] + 1     # increment by +1 SD
+    P_mod <- getProbs(db_mod) # compute altered probabilities
+    
+    res_mat[var, ] <- P_mod - P_orig # compute AME
+    
+    db_mod[[var]] <- db_mod[[var]] - 1     # revert change
+  }
+  
+  ## [b] Standalone dummies: 0 to 1
+  
+  for(var in ungrouped_dummy_vars){ # for each standalone dummy:
+    
+    original_value <- db_mod[[var]]  # store original value
+    
+    db_mod[[var]] <- 0 # set [[var]] to 0
+    P_orig <- getProbs(db_mod) # compute probs for database with zeroed dummy
+    
+    db_mod[[var]] <- 1 # set [[var]] to 1
+    P_mod <- getProbs(db_mod) # compute probs for altered database
+    
+    res_mat[var, ] <- P_mod - P_orig # compute AME
+    
+    db_mod[[var]] <- original_value  # revert
+  } 
+  
+  ## [c] Grouped dummies: for each group, zero all dummies and set [[var]] to 1
+  
+  for(group_name in names(dummy_groups)){ # for each group, loop:
+    
+    vars_in_group <- dummy_groups[[group_name]] # identify variables in it
+    original_values <- db_mod[, vars_in_group]  # store original values
+    
+    db_mod[, vars_in_group] <- 0 # zero the group
+    P_orig <- getProbs(db_mod) # compute baseline probs with zeroed group vars
+    
+    for(var in vars_in_group){ # for each variable in the group:
+      
+      db_mod[[var]] <- 1 # set [[var]] to 1
+      P_mod <- getProbs(db_mod) # compute probs for altered database
+      
+      res_mat[var, ] <- P_mod - P_orig # compute AME
+      
+      db_mod[[var]] <- 0                     # revert to original
+    }
+    
+    db_mod[, vars_in_group] <- original_values  # revert entire group
+  }
+  
+  # Return AMEs for all variables
+  res_mat
+}
+
+# == [G] Compute AMEs, activate functions ======================================
+
+# Call "getFullTheta" for each theta_draws 
+# Control simulation's execution and Estimated Time of Arrival
+
+res_list <- vector("list", nSim) # nSim = 500 (defined before)
+time_vec <- numeric(nSim)  # store elapsed times
+
+for (i in seq_len(nSim)) { # for each of the 500 simulations,
+  
+  start_time <- Sys.time() # store start time
+  
+  theta_i <- getFullTheta(theta_draws[i, ], apollo_inputs$database) # call function
+  res_list[[i]] <- computeAMEsForTheta(theta_i) # store results in "res_list"
+  
+  env <- environment(apollo_probabilities) # clean apollo envir. for memory usage
+  rm(list = c("r_2", "r_3"), envir = env) # same
+  
+  rm(theta_i) # clean temporary objects
+  gc(FALSE, TRUE) # same
+  
+  elapsed <- as.numeric(difftime(Sys.time(), start_time, units = "secs")) # elapsed time
+  time_vec[i] <- elapsed # store for each draw
+  
+  avg_time    <- mean(time_vec[1:i])  # mean time since start to present draw
+  remaining   <- avg_time * (nSim - i) # meantime*(remaining draws)
+  remaining_h <- remaining / 3600 # remaining in hours (3600s = 1h)
+  
+  # Message to be printed after each simulation is done to control the execution
+  # and the estimated time of arrival (ETA):
+  cat(sprintf("Simulation %d/%d done in %.1f sec (mem: %.2f GB) | ETA: ~%.2f h\n",
+              i, nSim, elapsed, pryr::mem_used()/1e9, remaining_h))
+  flush.console()
+  
+  if (i %% 10 == 0) gc(verbose = FALSE, full = TRUE) # every 10 draws, gc()
+}
+
+# == [H] Stack simulation results into array alts x vars x draws] ==============
+
+nSim     <- length(res_list) # nSim = 500
+all_vars <- rownames(res_list[[1]]) # extract var names
+n_vars   <- length(all_vars) # extract number of vars
+n_alts   <- ncol(res_list[[1]]) # extract number of alts
+
+# Stack results: [alts × vars × draws]
+res_array <- array(NA_real_, 
+                   dim = c(n_alts, n_vars, nSim),
+                   dimnames = list(paste0("alt", 1:n_alts), all_vars, NULL))
+
+for(i in seq_len(nSim)) {
+  res_array[,,i] <- t(res_list[[i]]) # traspose [vars x alts] to [alts x vars]
+}
+
+# == [I] Compute mean and 95% CIs ==============================================
+
+# Keep dim1 and 2 fixed [c(1,2)] and apply mean/quantile across simulations for
+# each combination of [alternative x variable]:
+mean_mat  <- apply(res_array, c(1,2), mean)
+lower_mat <- apply(res_array, c(1,2), quantile, probs = 0.025)
+upper_mat <- apply(res_array, c(1,2), quantile, probs = 0.975)
+
+# == [J] Create final AME table (and sub-tables for each alt) ==================
+
+# Transform means to percentage points
+mean_mat  <- mean_mat  * 100
+lower_mat <- lower_mat * 100
+upper_mat <- upper_mat * 100
+
+# Combine into a single table with AME ± CI
+AME_table <- data.frame(
+  variable   = all_vars,
+  alt1_mean  = mean_mat[1, ],
+  alt1_lower = lower_mat[1, ],
+  alt1_upper = upper_mat[1, ],
+  alt2_mean  = mean_mat[2, ],
+  alt2_lower = lower_mat[2, ],
+  alt2_upper = upper_mat[2, ],
+  alt3_mean  = mean_mat[3, ],
+  alt3_lower = lower_mat[3, ],
+  alt3_upper = upper_mat[3, ]
+)
+
+AME1 <- AME_table %>%
+  arrange(desc(alt1_mean)) %>%
+  dplyr::select(variable, alt1_mean, alt1_lower, alt1_upper) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+
+AME2 <- AME_table %>%
+  arrange(desc(alt2_mean)) %>%
+  dplyr::select(variable, alt2_mean, alt2_lower, alt2_upper) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+
+AME3 <- AME_table %>%
+  arrange(desc(alt3_mean)) %>%
+  dplyr::select(variable, alt3_mean, alt3_lower, alt3_upper) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+
+AME3 # electric vehicles
+AME1 # conventional vehicles
+AME2 # no vehicles
+
+# == [K] Save results ==========================================================
+
+# Save full AME table
+saveRDS(AME_table, file = here::here("AME_table.rds"))
+
+# Save alternative-specific tables
+saveRDS(AME1, file = here::here("AME1.rds"))
+saveRDS(AME2, file = here::here("AME2.rds"))
+saveRDS(AME3, file = here::here("AME3.rds"))
+
+# == [L] Prepare data for plotting =============================================
+
+# Define readable variable labels
+label_map <- c(
+  "inc_more_5_thous"     = ">5000€",
+  "inc_1_to_2_thous"     = "1000€ to 2000€",
+  "inc_2_to_3_thous"     = "2000€ to 3000€",
+  "mob_other_vehi"       = ">1 vehicle",
+  "geo_madrid"           = "Madrid",
+  "hh_all_higheduc"      = "High educ (all)",
+  "geo_50_100_thous"     = "50k–100k",
+  "mob_pmt_moto"         = "Motorbike",
+  "inc_3_to_5_thous"     = "3000€ to 5000€",
+  "wp_ownhome"           = "Own home",
+  "h_park_slot"          = "Parking slot",
+  "geo_barcelona"        = "Barcelona",
+  "geo_more_500_thous"   = ">500k",
+  "hh_num_members"       = "No. of members",
+  "hh_foreign"           = "Foreign members",
+  "hh_some_higheduc"     = "High educ (some)",
+  "h_detached"           = "Detached house",
+  "ws_none_work"         = "None work",
+  "wp_myprovince"        = "Own province",
+  "h_secondhome"         = "Second home",
+  "hh_oneperson"         = "One person",
+  "mob_pmt_pub_trans"    = "Public transp.",
+  "h_rental"             = "Rented",
+  "hh_twoadultsalone"    = "Two adults",
+  "mob_pmt_priv_car"     = "Private car",
+  "hh_twoadultsandchild" = "Couple w/ 1 child",
+  "com_40_to_59_min"     = "40–59 min.",
+  "wp_otherplace"        = "Other places",
+  "com_20_to_39_min"     = "20–39 min.",
+  "geo_100_500_thous"    = "100k–500k",
+  "geo_services"         = "Basic services",
+  "hh_propmale18"        = "Male % >18",
+  "com_more_1_hour"      = ">1h",
+  "ws_all_work"          = "All work",
+  "com_num_trips"        = "No. of trips",
+  "hh_num_minors"        = "No. of minors",
+  "h_ownership"          = "Owned",
+  "hh_singleparent"      = "Single parent",
+  "hh_meanage18"         = "Mean age (≥18)"
+)
+
+# Create plotting dataset
+plot_data <- AME3 %>%
+  # Group classification
+  mutate(group = case_when(
+    variable %in% c("inc_more_5_thous","inc_1_to_2_thous","inc_2_to_3_thous","inc_3_to_5_thous") ~ "Income",
+    variable %in% c("mob_other_vehi","mob_pmt_moto","mob_pmt_pub_trans","mob_pmt_priv_car") ~ "Principal mode \n of transportation",
+    variable %in% c("hh_all_higheduc","hh_num_members","hh_foreign","hh_some_higheduc", "hh_propmale18","hh_num_minors","hh_meanage18") ~ "Sociodemographic \n characteristics",
+    variable %in% c("geo_50_100_thous","geo_more_500_thous","geo_100_500_thous","geo_services","geo_madrid","geo_barcelona") ~ "Location",
+    variable %in% c("wp_ownhome","wp_myprovince","wp_otherplace","ws_none_work","ws_all_work") ~ "Working place \n and status",
+    variable %in% c("h_park_slot","h_detached","h_secondhome","h_rental","h_ownership") ~ "Dwelling \n characteristics",
+    variable %in% c("hh_oneperson","hh_twoadultsalone","hh_twoadultsandchild","hh_singleparent") ~ "Family structure",
+    TRUE ~ "Commutement \n habits"
+  ),
+  # Significance
+  significant     = ifelse(alt3_lower > 0 | alt3_upper < 0, TRUE, FALSE),
+  # Apply readable labels
+  variable_label = recode(variable, !!!label_map)) %>%
+  group_by(group) %>%
+  mutate(variable_label = fct_reorder(variable_label, alt3_mean)) %>%
+  ungroup()
+
+# == [M] Create & save plot ====================================================
+
+ggplot(plot_data, aes(x = alt3_mean, y = variable_label)) +
+  
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed", linewidth = 0.4) +
+  
+  geom_errorbarh(aes(xmin = alt3_lower, xmax = alt3_upper), 
+                 height = 0.15, linewidth = 0.35, color = "black") +
+  
+  geom_point(aes(shape = significant, fill = significant),
+             size = 2.4, color = "black") +
+  
+  scale_shape_manual(values = c("TRUE" = 21, "FALSE" = 21), guide = "none") +
+  scale_fill_manual(values = c("TRUE" = "black", "FALSE" = "white"), guide = "none") +
+  
+  facet_grid(group ~ ., scales = "free_y", space = "free_y", switch = "y") +
+  
+  labs(
+    title = "Average Marginal Effects on the Probability of Choosing a Clean Vehicle",
+    subtitle = "95% CIs (1000 Parametric Monte Carlo Simulations)*",
+    x = "AME (percentage points)",
+    y = NULL,
+    caption = "*AMEs are computed as discrete changes in predicted probabilities. For binary variables, AMEs represent the change from 0 to 1. 
+For continuous variables, AMEs represent the change associated with a one-unit increase, holding other variables constant.*"
+  ) +
+  
+  scale_x_continuous(
+    breaks = seq(floor(min(plot_data$alt3_lower)), 
+                 ceiling(max(plot_data$alt3_upper)), 
+                 by = 0.25),
+    labels = scales::number_format(accuracy = 0.01),
+    expand = expansion(mult = c(0.05, 0.05))
+  ) +
+  
+  theme_minimal(base_size = 13, base_family = "Times New Roman") +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, margin = margin(b = 4), hjust = 0.5),
+    plot.subtitle = element_text(size = 11, margin = margin(b = 12), hjust = 0.5),
+    axis.text.y = element_text(size = 9, color = "black"),
+    axis.text.x = element_text(size = 8.5, color = "black"),
+    axis.title.x = element_text(size = 11, margin = margin(t = 8)),
+    panel.spacing.y = unit(0.9, "lines"),
+    panel.background = element_rect(fill = "grey98", color = NA),
+    panel.grid.major.y = element_line(color = "grey90", size = 0.25),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey90", size = 0.25),
+    panel.grid.minor.x = element_blank(),
+    strip.text.y.left = element_text(face = "bold", size = 9, angle = 0, 
+                                     hjust = 0.5, vjust = 0.5, color = "black"),
+    strip.background = element_rect(fill = "grey93", color = NA),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_text(size = 8, color = "grey20",
+                                hjust = 0, margin = margin(t = 12, b = 4)),
+    plot.caption.position = "plot",
+    plot.margin = margin(t = 20, r = 40, b = 25, l = 40)
+  ) +
+  
+  ggh4x::force_panelsizes(
+    rows = unit(c(0.5, 0.6, 0.5, 0.5, 0.6, 0.5, 0.75, 0.6), "in"),
+    respect = TRUE
+  )
+
+ggsave(
+ "AME_EV_plot.pdf",
+ width = 11,
+ height = 8.5,
+ units = "in",
+ dpi = 300,
+ device = cairo_pdf
+)
+
+# 6. END #######################################################################
 
 # Track errors
 traceback()
@@ -3164,4 +2064,4 @@ end_time <- Sys.time()
 time = end_time - start.time
 print(time) 
 
-# Last run time: ~86h
+# Last run time: ~100h
