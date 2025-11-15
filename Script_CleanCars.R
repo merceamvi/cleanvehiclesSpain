@@ -2067,16 +2067,17 @@ diff_summary <- data.frame(variable = numeric_vars_present, do.call(rbind, diff_
 
 # == [L] Build AME_table (full, all alts, numeric vs dummy logic) ==============
 
-  # Initialize empty data.frame
+# Initialize empty data.frame
 AME_table <- data.frame(variable = vars, stringsAsFactors = FALSE)
 
 for (alt_idx in 1:n_alts) {
   
+  # Choose MEANS based on numeric vs dummy
   mean_vals  <- ifelse(vars %in% numeric_vars, 
-                       mean_analytic_pct[alt_idx, ], 
-                       mean_discrete_pct[alt_idx, ])
+                       analytic_summary$mean[alt_idx, ], 
+                       discrete_summary$mean[alt_idx, ])
   
-  # Correct sd computation across draws
+  # Standard deviations across draws
   sd_vals <- sapply(vars, function(v) {
     if (v %in% numeric_vars) {
       sd(res_analytic_array[alt_idx, v, ], na.rm = TRUE) * 100
@@ -2085,20 +2086,22 @@ for (alt_idx in 1:n_alts) {
     }
   })
   
+  # Confidence intervals
   lower_vals <- ifelse(vars %in% numeric_vars, 
-                       lower_analytic_pct[alt_idx, ], 
-                       lower_discrete_pct[alt_idx, ])
+                       analytic_summary$lower[alt_idx, ], 
+                       discrete_summary$lower[alt_idx, ])
   
   upper_vals <- ifelse(vars %in% numeric_vars, 
-                       upper_analytic_pct[alt_idx, ], 
-                       upper_discrete_pct[alt_idx, ])
+                       analytic_summary$upper[alt_idx, ], 
+                       discrete_summary$upper[alt_idx, ])
   
-  # Add columns to table
+  # Add columns
   AME_table[[paste0("alt", alt_idx, "_mean")]]  <- round(mean_vals, 4)
   AME_table[[paste0("alt", alt_idx, "_sd")]]    <- round(sd_vals, 4)
   AME_table[[paste0("alt", alt_idx, "_lower")]] <- round(lower_vals, 4)
   AME_table[[paste0("alt", alt_idx, "_upper")]] <- round(upper_vals, 4)
 }
+
 
 AME_table
 
@@ -2286,4 +2289,5 @@ time = end_time - start.time
 print(time) 
 
 # Last run time: ~100h
+
 
