@@ -1,6 +1,6 @@
 # Project       : Clean vehicle ownership in Spain
 # Creation date : 08/04/2024
-# Last update   : 14/11/2024
+# Last update   : 31/11/2024
 # Author        : Mercè Amich (merce.amich@ehu.eus)
 # Institution   : Euskal Herriko Unibertsitatea / Universidad del País Vasco
 # Last run time : ~100h
@@ -46,7 +46,8 @@ packages.needed <- c ("dplyr"       ,
                       "forplo"      , 
                       "patchwork"   ,
                       "forcats"     , 
-                      "ggh4x"
+                      "ggh4x"       ,
+                      "openxlsx"
                       
 )
 
@@ -611,6 +612,7 @@ tableb1_socdem <- data %>%
   tibble() %>%
   print()
 
+
 ### b) Mobility-related ----
 tableb1_mob <- data %>%
   dplyr::filter(!is.na(com_num_trips)) %>%
@@ -691,6 +693,7 @@ tablec1_mob <- data %>%
   ) %>%
   mutate(variable = sub("proportion_of_1_", "", variable)) %>%
   print()
+
 
 ### c) Services ----
 tablec1_services <- data %>%
@@ -910,12 +913,12 @@ apollo_beta = c(
   b3_mob_pmt_pub_trans     = 0.0,
   
   #b1: No
-  b2_mob_pmt_moto       = 0.0,
-  b3_mob_pmt_moto       = 0.0,
+  b2_mob_pmt_moto          = 0.0,
+  b3_mob_pmt_moto          = 0.0,
   
   # ERROR TERMS
-  sd_2                = 0.1,
-  sd_3                = 0.2
+  sd_2                     = 0.1,
+  sd_3                     = 0.2
   
 )
 
@@ -973,7 +976,8 @@ apollo_fixed = c("asc_2",
                  "b2_mob_other_vehi",
                  "b2_mob_pmt_priv_car",
                  "b2_mob_pmt_pub_trans",
-                 "b2_mob_pmt_moto"               
+                 "b2_mob_pmt_moto"
+                 
 ) 
 
 # [C.3] "apollo_draws" ----
@@ -994,7 +998,6 @@ apollo_randCoeff = function(apollo_beta, apollo_inputs){
   randcoeff[["r_3"]] =     ( sd_3 * draws_3 )
   return(randcoeff)
 }
-
 
 # == [D] Validate data =========================================================
 
@@ -1068,6 +1071,7 @@ apollo_probabilities=function(apollo_beta,
     # b1_mob_pmt_priv_car   * mob_pmt_priv_car     + # Not in this alternative
     b1_mob_pmt_pub_trans    * mob_pmt_pub_trans    
     # b1_mob_pmt_moto       * mob_pmt_moto           # Not in this alternative
+  
   
   #### V[["alt2"]] ####
   V[["alt2"]]  = asc_2                             +
@@ -1177,6 +1181,7 @@ apollo_probabilities=function(apollo_beta,
     
     r_2 + r_3
   
+  
   ### Define settings for MNL model component ####
   mnl_settings = list(
     alternatives  = c(alt1 = 1, 
@@ -1237,7 +1242,6 @@ apollo_modelOutput(model,
                      printDataReport = TRUE # summary choices
                    ))
 
-
 ## P-values
 summary(model, pTwoSided = FALSE) # p-values 1 sided
 summary(model, pTwoSided = TRUE)  # p-values 2 sided
@@ -1264,33 +1268,18 @@ apollo_saveOutput(model,
 
 # 6. POST-ESTIMATION ###########################################################
 
-rm(list = ls(all = TRUE)) # Clear workspace
-Sys.setenv(LANG = "en") # Set language
-start.time = Sys.time() # Set start time
-
-# Install and load any required R-package
-packages.loaded <- installed.packages()
-packages.needed <- c ("dplyr", "here", "tidyr", "apollo", "MASS")
-
-for (p in packages.needed) {
-  if (!p %in% row.names(packages.loaded)) install.packages(p)
-  eval(bquote(library(.(p))))
-}
-
-path <- here() # Define main path
-setwd(paste0(path)) # Set working directory
-set.seed(123) # for reproducibility
-
 # == [A] Load model and data ===================================================
 
+rm(list = ls(all = TRUE)) # clear workspace
 database <- load(file.path(path, "data.Rdata")) # load data
 database <- data # rename & transform to data.frame
 database$FACTOR <- database$FACTOR / 100 # adjust weights as in the model
 remove(data) # keep environment clean & memory usage low
 model    <- readRDS(file.path(path, "EC_model.rds")) # load model
 
-
 # == [B] Create apollo objects in environment again ============================
+
+set.seed(123) # for reproducibility
 
 apollo_control = list(
   modelName  = "EC",
@@ -1300,166 +1289,73 @@ apollo_control = list(
   nCores     = 10 
 )
 
-apollo_beta = c(asc_1 = -0.067885, 
-                asc_2 = 0.0, 
-                asc_3 = -4.144465, 
-                b1_hh_foreign = 1.007025,
-                b2_hh_foreign = 0.0, 
-                b3_hh_foreign = 0.144441, 
-                b1_hh_oneperson = 0.518905, 
-                b2_hh_oneperson = 0.0, 
-                b3_hh_oneperson = 0.074264, 
-                b1_hh_singleparent = -0.039404, 
-                b2_hh_singleparent = 0.0, 
-                b3_hh_singleparent = 0.022402, 
-                b1_hh_twoadultsalone = -0.790167,
-                b2_hh_twoadultsalone = 0.0, 
-                b3_hh_twoadultsalone = 0.152213, 
+apollo_beta = c(asc_1 = -0.067885, asc_2 = 0.0, asc_3 = -4.144465, 
+                b1_hh_foreign = 1.007025, b2_hh_foreign = 0.0, 
+                b3_hh_foreign = 0.144441, b1_hh_oneperson = 0.518905, 
+                b2_hh_oneperson = 0.0, b3_hh_oneperson = 0.074264, 
+                b1_hh_singleparent = -0.039404, b2_hh_singleparent = 0.0, 
+                b3_hh_singleparent = 0.022402, b1_hh_twoadultsalone = -0.790167,
+                b2_hh_twoadultsalone = 0.0, b3_hh_twoadultsalone = 0.152213, 
                 b1_hh_twoadultsandchild = -1.241126, 
-                b2_hh_twoadultsandchild = 0.0, 
-                b3_hh_twoadultsandchild = -0.086202, 
-                b1_hh_num_members = -0.192716, 
-                b2_hh_num_members = 0.0, 
-                b3_hh_num_members = -0.038092, 
-                b1_hh_num_minors = 0.066684, 
-                b2_hh_num_minors = 0.0, 
-                b3_hh_num_minors = 0.186956, 
-                b1_hh_propmale18 = 0.0, 
-                b2_hh_propmale18 = 0.0, 
-                b3_hh_propmale18 = 0.0, 
-                b1_hh_meanage18 = 0.0, 
-                b2_hh_meanage18 = 0.0, 
-                b3_hh_meanage18 = 0.0, 
-                b1_hh_some_higheduc = -0.468874, 
-                b2_hh_some_higheduc = 0.0, 
-                b3_hh_some_higheduc = 0.526702, 
-                b1_hh_all_higheduc = -0.562453, 
-                b2_hh_all_higheduc = 0.0, 
-                b3_hh_all_higheduc = 0.713541, 
-                b1_inc_1_to_2_thous = -0.360102, 
-                b2_inc_1_to_2_thous = 0.0, 
-                b3_inc_1_to_2_thous = -0.052324, 
-                b1_inc_2_to_3_thous = -0.980756,
-                b2_inc_2_to_3_thous = 0.0, 
-                b3_inc_2_to_3_thous = 0.303296, 
-                b1_inc_3_to_5_thous = -1.104291, 
-                b2_inc_3_to_5_thous = 0.0, 
-                b3_inc_3_to_5_thous = 0.748509, 
-                b1_inc_more_5_thous = -0.656055, 
-                b2_inc_more_5_thous = 0.0, 
-                b3_inc_more_5_thous = 1.158671, 
-                b1_ws_all_work = -0.511006, 
-                b2_ws_all_work = 0.0, 
-                b3_ws_all_work = 0.072424, 
-                b1_ws_none_work = 0.275080, 
-                b2_ws_none_work = 0.0, 
-                b3_ws_none_work = -0.712666, 
-                b1_wp_ownhome = -0.083514, 
-                b2_wp_ownhome = 0.0, 
-                b3_wp_ownhome = 0.362673, 
-                b1_wp_myprovince = -0.467923, 
-                b2_wp_myprovince = 0.0, 
-                b3_wp_myprovince = 0.235941, 
-                b1_wp_otherplace = -0.590603,
-                b2_wp_otherplace = 0.0, 
-                b3_wp_otherplace = -0.083879, 
-                b1_com_20_to_39_min = -0.189068, 
-                b2_com_20_to_39_min = 0.0, 
-                b3_com_20_to_39_min = -0.083177, 
-                b1_com_40_to_59_min = 0.077159, 
-                b2_com_40_to_59_min = 0.0, 
-                b3_com_40_to_59_min = 0.003872, 
-                b1_com_more_1_hour = 0.077159, 
-                b2_com_more_1_hour = 0.0, 
-                b3_com_more_1_hour = 0.003872, 
-                b1_com_num_trips = -0.155225, 
-                b2_com_num_trips = 0.0, 
-                b3_com_num_trips = -0.003803, 
-                b1_geo_50_100_thous = 0.176347, 
-                b2_geo_50_100_thous = 0.0, 
-                b3_geo_50_100_thous = 0.227539, 
-                b1_geo_100_500_thous = 0.516286, 
-                b2_geo_100_500_thous = 0.0, 
-                b3_geo_100_500_thous = 0.179566,
-                b1_geo_more_500_thous = 1.138612, 
-                b2_geo_more_500_thous = 0.0, 
-                b3_geo_more_500_thous = 0.168840, 
-                b1_geo_barcelona = 0.450697, 
-                b2_geo_barcelona = 0.0, 
-                b3_geo_barcelona = 0.133745, 
-                b1_geo_madrid = 0.0, 
-                b2_geo_madrid = 0.0, 
-                b3_geo_madrid = 0.0, 
-                b1_geo_services = 0.0,
-                b2_geo_services = 0.0, 
-                b3_geo_services = 0.0, 
-                b1_h_secondhome = 0.0, 
-                b2_h_secondhome = 0.0, 
-                b3_h_secondhome = 0.0, 
-                b1_h_ownership = 0.0, 
-                b2_h_ownership = 0.0, 
-                b3_h_ownership = 0.0, 
-                b1_h_rental = 0.0, 
-                b2_h_rental = 0.0, 
-                b3_h_rental = 0.0, 
-                b1_h_park_slot = 0.0, 
-                b2_h_park_slot = 0.0, 
-                b3_h_park_slot = 0.0, 
-                b1_h_detached = 0.0, 
-                b2_h_detached = 0.0, 
-                b3_h_detached = 0.0, 
-                b2_mob_other_vehi = 0.0, 
-                b3_mob_other_vehi = 0.0, 
-                b2_mob_pmt_priv_car = 0.0, 
-                b3_mob_pmt_priv_car = 0.0, 
-                b1_mob_pmt_pub_trans = 0.0, 
-                b2_mob_pmt_pub_trans = 0.0, 
-                b3_mob_pmt_pub_trans = 0.0, 
-                b2_mob_pmt_moto = 0.0, 
-                b3_mob_pmt_moto = 0.0, 
-                sd_2 = 0.1, 
-                sd_3 = 0.2)
+                b2_hh_twoadultsandchild = 0.0, b3_hh_twoadultsandchild = -0.086202, 
+                b1_hh_num_members = -0.192716, b2_hh_num_members = 0.0, 
+                b3_hh_num_members = -0.038092, b1_hh_num_minors = 0.066684, 
+                b2_hh_num_minors = 0.0, b3_hh_num_minors = 0.186956, 
+                b1_hh_propmale18 = 0.0, b2_hh_propmale18 = 0.0, 
+                b3_hh_propmale18 = 0.0, b1_hh_meanage18 = 0.0, 
+                b2_hh_meanage18 = 0.0, b3_hh_meanage18 = 0.0, 
+                b1_hh_some_higheduc = -0.468874, b2_hh_some_higheduc = 0.0, 
+                b3_hh_some_higheduc = 0.526702, b1_hh_all_higheduc = -0.562453, 
+                b2_hh_all_higheduc = 0.0, b3_hh_all_higheduc = 0.713541, 
+                b1_inc_1_to_2_thous = -0.360102, b2_inc_1_to_2_thous = 0.0, 
+                b3_inc_1_to_2_thous = -0.052324, b1_inc_2_to_3_thous = -0.980756,
+                b2_inc_2_to_3_thous = 0.0, b3_inc_2_to_3_thous = 0.303296, 
+                b1_inc_3_to_5_thous = -1.104291, b2_inc_3_to_5_thous = 0.0, 
+                b3_inc_3_to_5_thous = 0.748509, b1_inc_more_5_thous = -0.656055, 
+                b2_inc_more_5_thous = 0.0, b3_inc_more_5_thous = 1.158671, 
+                b1_ws_all_work = -0.511006, b2_ws_all_work = 0.0, 
+                b3_ws_all_work = 0.072424, b1_ws_none_work = 0.275080, 
+                b2_ws_none_work = 0.0, b3_ws_none_work = -0.712666, 
+                b1_wp_ownhome = -0.083514, b2_wp_ownhome = 0.0, 
+                b3_wp_ownhome = 0.362673, b1_wp_myprovince = -0.467923, 
+                b2_wp_myprovince = 0.0, b3_wp_myprovince = 0.235941, 
+                b1_wp_otherplace = -0.590603, b2_wp_otherplace = 0.0, 
+                b3_wp_otherplace = -0.083879, b1_com_20_to_39_min = -0.189068, 
+                b2_com_20_to_39_min = 0.0, b3_com_20_to_39_min = -0.083177, 
+                b1_com_40_to_59_min = 0.077159, b2_com_40_to_59_min = 0.0, 
+                b3_com_40_to_59_min = 0.003872, b1_com_more_1_hour = 0.077159, 
+                b2_com_more_1_hour = 0.0, b3_com_more_1_hour = 0.003872, 
+                b1_com_num_trips = -0.155225, b2_com_num_trips = 0.0, 
+                b3_com_num_trips = -0.003803, b1_geo_50_100_thous = 0.176347, 
+                b2_geo_50_100_thous = 0.0, b3_geo_50_100_thous = 0.227539, 
+                b1_geo_100_500_thous = 0.516286, b2_geo_100_500_thous = 0.0, 
+                b3_geo_100_500_thous = 0.179566, b1_geo_more_500_thous = 1.138612, 
+                b2_geo_more_500_thous = 0.0, b3_geo_more_500_thous = 0.168840, 
+                b1_geo_barcelona = 0.450697, b2_geo_barcelona = 0.0, 
+                b3_geo_barcelona = 0.133745, b1_geo_madrid = 0.0, 
+                b2_geo_madrid = 0.0, b3_geo_madrid = 0.0, b1_geo_services = 0.0,
+                b2_geo_services = 0.0, b3_geo_services = 0.0, 
+                b1_h_secondhome = 0.0, b2_h_secondhome = 0.0, 
+                b3_h_secondhome = 0.0, b1_h_ownership = 0.0, 
+                b2_h_ownership = 0.0, b3_h_ownership = 0.0, b1_h_rental = 0.0, 
+                b2_h_rental = 0.0, b3_h_rental = 0.0, b1_h_park_slot = 0.0, 
+                b2_h_park_slot = 0.0, b3_h_park_slot = 0.0, b1_h_detached = 0.0, 
+                b2_h_detached = 0.0, b3_h_detached = 0.0, b2_mob_other_vehi = 0.0, 
+                b3_mob_other_vehi = 0.0, b2_mob_pmt_priv_car = 0.0, 
+                b3_mob_pmt_priv_car = 0.0, b1_mob_pmt_pub_trans = 0.0, 
+                b2_mob_pmt_pub_trans = 0.0, b3_mob_pmt_pub_trans = 0.0, 
+                b2_mob_pmt_moto = 0.0, b3_mob_pmt_moto = 0.0, 
+                sd_2 = 0.1, sd_3 = 0.2)
 
-apollo_fixed = c("asc_2", 
-                 "b2_hh_foreign", 
-                 "b2_hh_oneperson", 
-                 "b2_hh_singleparent", 
-                 "b2_hh_twoadultsalone", 
-                 "b2_hh_twoadultsandchild", 
-                 "b2_hh_num_members", 
-                 "b2_hh_num_minors", 
-                 "b2_hh_propmale18", 
-                 "b2_hh_meanage18", 
-                 "b2_hh_some_higheduc", 
-                 "b2_hh_all_higheduc", 
-                 "b2_inc_1_to_2_thous",
-                 "b2_inc_2_to_3_thous", 
-                 "b2_inc_3_to_5_thous", 
-                 "b2_inc_more_5_thous", 
-                 "b2_ws_all_work", 
-                 "b2_ws_none_work", 
-                 "b2_wp_ownhome", 
-                 "b2_wp_myprovince", 
-                 "b2_wp_otherplace", 
-                 "b2_com_20_to_39_min", 
-                 "b2_com_40_to_59_min", 
-                 "b2_com_more_1_hour", 
-                 "b2_com_num_trips", 
-                 "b2_geo_50_100_thous", 
-                 "b2_geo_100_500_thous", 
-                 "b2_geo_more_500_thous", 
-                 "b2_geo_barcelona", 
-                 "b2_geo_madrid", 
-                 "b2_geo_services", 
-                 "b2_h_secondhome", 
-                 "b2_h_ownership", 
-                 "b2_h_rental", 
-                 "b2_h_park_slot", 
-                 "b2_h_detached", 
-                 "b2_mob_other_vehi", 
-                 "b2_mob_pmt_priv_car", 
-                 "b2_mob_pmt_pub_trans", 
-                 "b2_mob_pmt_moto") 
+apollo_fixed = c("asc_2", "b2_hh_foreign", "b2_hh_oneperson", "b2_hh_singleparent", "b2_hh_twoadultsalone", 
+                 "b2_hh_twoadultsandchild", "b2_hh_num_members", "b2_hh_num_minors", "b2_hh_propmale18", 
+                 "b2_hh_meanage18", "b2_hh_some_higheduc", "b2_hh_all_higheduc", "b2_inc_1_to_2_thous",
+                 "b2_inc_2_to_3_thous", "b2_inc_3_to_5_thous", "b2_inc_more_5_thous", "b2_ws_all_work", 
+                 "b2_ws_none_work", "b2_wp_ownhome", "b2_wp_myprovince", "b2_wp_otherplace", "b2_com_20_to_39_min", 
+                 "b2_com_40_to_59_min", "b2_com_more_1_hour", "b2_com_num_trips", "b2_geo_50_100_thous", 
+                 "b2_geo_100_500_thous", "b2_geo_more_500_thous", "b2_geo_barcelona", "b2_geo_madrid", 
+                 "b2_geo_services", "b2_h_secondhome", "b2_h_ownership", "b2_h_rental", "b2_h_park_slot", 
+                 "b2_h_detached", "b2_mob_other_vehi", "b2_mob_pmt_priv_car", "b2_mob_pmt_pub_trans", "b2_mob_pmt_moto") 
 
 apollo_draws = list(
   interDrawsType = "sobol",
@@ -1540,7 +1436,7 @@ apollo_probabilities=function(apollo_beta,
     # b1_mob_other_vehi     * mob_other_vehi       + # Not in this alternative
     # b1_mob_pmt_priv_car   * mob_pmt_priv_car     + # Not in this alternative
     b1_mob_pmt_pub_trans    * mob_pmt_pub_trans    
-    # b1_mob_pmt_moto       * mob_pmt_moto           # Not in this alternative
+  # b1_mob_pmt_moto       * mob_pmt_moto           # Not in this alternative
   
   
   #### V[["alt2"]] ####
@@ -1651,7 +1547,7 @@ apollo_probabilities=function(apollo_beta,
     
     r_2 + r_3
   
-  ### Define settings for MNL model component ####
+    ### Define settings for MNL model component ####
   mnl_settings = list(
     alternatives  = c(alt1 = 1, alt2 = 2, alt3 = 3),
     avail         = 1,
@@ -1729,7 +1625,7 @@ ungrouped_dummy_vars <- setdiff(dummy_vars, grouped_dummy_vars) # standalone one
 ## a) Create "V_theta" =========================================================
 
 # Intermediate step needed because "model$estimate" includes alt2 parameters (0)
-# which are not present in robvarcov. 
+# which are not present in robvarcov
 # To propagate uncertainty using a multivariate normal distribution using ::MASS,
 # no parameters = 0 can be present in "mu"
 
@@ -1751,7 +1647,7 @@ V_theta[common, common] <- vcov_raw[common, common]
 
 ## b) Generate theta draws =====================================================
 
-nSim = 1000 # Using 1000 parametric MC simulations
+nSim = 1000 # Using 500 parametric MC simulations
 
 theta_draws <- MASS::mvrnorm( # from a multivariate normal distribution
   n     = nSim, # nSim times
@@ -1761,7 +1657,8 @@ theta_draws <- MASS::mvrnorm( # from a multivariate normal distribution
 
 # == [E] Helper function 1: "getFullTheta" =====================================
 
-# Function to reconstruct full parameter vector:
+# Function to reconstruct full parameter vector
+
 # To revert the previous step and include again parameters fixed to 0 (alt2) and
 # estimate the random coefficients (sd_2 and sd_3) for the simulation
 
@@ -1800,7 +1697,7 @@ getFullTheta <- function(draw_i, db) {
 
 # The function identifies three types of AMEs to compute depending on the type
 # of variable. Those are:
-# [a] Numeric variables: increment by 0.01*1 (analytic) and by 1 (discrete)
+# [a] Numeric variables: increment by 0.01
 # [b] Standalone dummy variables: from 0 to 1
 # [c] Dummy part of a group: sets all group to 0, puts each dummy to 1 one by one
 
@@ -1916,7 +1813,7 @@ computeAMEsForTheta <- function(theta_i, numeric_method = c("discrete", "analyti
     db_mod[[var]] <- original_value                           # restore variable
   }
   
-    ## [C] GROUPED DUMMY VARIABLES
+  ## [C] GROUPED DUMMY VARIABLES
   for (group_name in names(dummy_groups)) {
     vars_in_group <- dummy_groups[[group_name]]               # list of dummies in group
     original_values <- db_mod[, vars_in_group, drop = FALSE]  # store originals
@@ -1942,7 +1839,7 @@ computeAMEsForTheta <- function(theta_i, numeric_method = c("discrete", "analyti
        analytic = mat_analytic)
 }
 
-# == [G] Bootstrap loop: call getFullTheta + computeAMEsForTheta ================
+# == [G] Compute AMEs, activate functions ======================================
 
 # Purpose:
 # Runs nSim simulation draws. For each draw:
@@ -1980,13 +1877,29 @@ for (i in seq_len(nSim)) {
   # Progress message with elapsed time, memory usage, and ETA
   cat(sprintf("Simulation %d/%d done in %.1f sec (mem: %.2f GB) | ETA: ~%.2f h\n",
               i, nSim, elapsed, pryr::mem_used()/1e9, remaining_h))
-  flush.console()
+  flush.console() 
   
   # Every 10 iterations, run a full garbage collection
   if (i %% 10 == 0) gc(verbose = FALSE, full = TRUE)
 }
 
-# == [H] Stack simulation results into [array alts x vars x draws] ==============
+# == [H] Stack simulation results into array [alts x vars x draws] ==============
+
+nSim     <- length(res_list) # nSim = 500
+all_vars <- rownames(res_list[[1]]) # extract var names
+n_vars   <- length(all_vars) # extract number of vars
+n_alts   <- ncol(res_list[[1]]) # extract number of alts
+
+# Stack results: [alts × vars × draws]
+res_array <- array(NA_real_, 
+                   dim = c(n_alts, n_vars, nSim),
+                   dimnames = list(paste0("alt", 1:n_alts), all_vars, NULL))
+
+for(i in seq_len(nSim)) {
+  res_array[,,i] <- t(res_list[[i]]) # traspose [vars x alts] to [alts x vars]
+}
+
+# == [I] Stack results =========================================================
 
 # Purpose:
 # Combine all simulation outputs into 3D arrays with dimensions: 
@@ -2019,7 +1932,7 @@ for (i in seq_len(nSim_r)) {
   res_analytic_array[,,i] <- t(anal_i)
 }
 
-# == [I] Compute mean and 95% CIs ==============================================
+# == [J] Compute means & 95% Confidence Intervals ==============================
 
 # Purpose:
 # For each variable–alternative combination:
@@ -2036,36 +1949,36 @@ compute_summary <- function(array) {
 }
 
 # --- Summaries ---
-discrete_summary <- compute_summary(res_discrete_array)
-analytic_summary <- compute_summary(res_analytic_array)
-diff_array       <- res_discrete_array - res_analytic_array
+discrete_summary   <- compute_summary(res_discrete_array)
+analytic_summary   <- compute_summary(res_analytic_array)
+diff_array         <- res_discrete_array - res_analytic_array
 diff_summary_stats <- compute_summary(diff_array)
 
 # Convert to percentages
 to_pct <- function(x) x * 100
-discrete_summary  <- lapply(discrete_summary, to_pct)
-analytic_summary  <- lapply(analytic_summary, to_pct)
+discrete_summary   <- lapply(discrete_summary, to_pct)
+analytic_summary   <- lapply(analytic_summary, to_pct)
 diff_summary_stats <- lapply(diff_summary_stats, to_pct)
 
-# == [K] Summary table of differences ===========================================
-
-# Robustness check regarding numeric AME discrete (+1) and AME analytic (*1)
+# == [K] Summary table of differences (numeric AMEs: discrete - analytic) ======
 
 numeric_vars_present <- vars[vars %in% numeric_vars]
 
 diff_summary <- lapply(1:length(numeric_vars_present), function(i) {
-  var <- numeric_vars_present[i]
-  diff_vals <- sapply(1:dim(res_discrete_array)[1], function(k) discrete_summary$mean[k, var] - analytic_summary$mean[k, var])
-  c(mean = mean(diff_vals, na.rm = TRUE),
-    sd   = sd(diff_vals, na.rm = TRUE),
+  var        <- numeric_vars_present[i]
+  diff_vals  <- sapply(1:dim(res_discrete_array)[1], 
+                       function(k) discrete_summary$mean[k, var] - analytic_summary$mean[k, var])
+  c(mean  = mean(diff_vals, na.rm = TRUE),
+    sd    = sd(diff_vals, na.rm = TRUE),
     lower = quantile(diff_vals, probs = 0.025, na.rm = TRUE),
     upper = quantile(diff_vals, probs = 0.975, na.rm = TRUE))
 })
 
-diff_summary <- data.frame(variable = numeric_vars_present, do.call(rbind, diff_summary)) %>%
+diff_summary <- data.frame(variable = numeric_vars_present, 
+                           do.call(rbind, diff_summary)) %>%
   dplyr::mutate(across(where(is.numeric), ~ round(.x, 4)))
 
-# == [L] Build AME_table (full, all alts, numeric vs dummy logic) ==============
+# == [L] Build final AME table (all alternatives, numeric vs dummy logic) ======
 
 # Initialize empty data.frame
 AME_table <- data.frame(variable = vars, stringsAsFactors = FALSE)
@@ -2102,11 +2015,11 @@ for (alt_idx in 1:n_alts) {
   AME_table[[paste0("alt", alt_idx, "_upper")]] <- round(upper_vals, 4)
 }
 
+print(AME_table)
 
-AME_table
+# == [M] Subset AME_table by alternative: AME1, AME2, AME3 =====================
 
-# == [M] Subset AME_table by alternative: AME1, AME2 and AME3 ==============
-
+# Function to subset AME_table by alternative
 make_AME_subset <- function(alt_idx) {
   alt_cols <- grep(paste0("^alt", alt_idx, "_"), names(AME_table), value = TRUE)
   AME_table[, c("variable", alt_cols)]
@@ -2117,22 +2030,109 @@ AME1 <- make_AME_subset(1)
 AME2 <- make_AME_subset(2)
 AME3 <- make_AME_subset(3)
 
-# == [N] Save results ==========================================================
-
-# Save table of differences (numeric AME discrete - numeric AME analytic)
+# Salve results
 saveRDS(diff_summary,  file = here::here("AME_numeric_diff_summary.rds"))
+saveRDS(AME_table,     file = here::here("AME_table_full.rds"))
+saveRDS(AME1,          file = here::here("AME1.rds"))
+saveRDS(AME2,          file = here::here("AME2.rds"))
+saveRDS(AME3,          file = here::here("AME3.rds"))
 
-# Save full AME table
-saveRDS(AME_table, file = here::here("AME_table.rds"))
+# Save tables en .xls:
 
-# Save alternative-specific tables
-saveRDS(AME1, file = here::here("AME1.rds"))
-saveRDS(AME2, file = here::here("AME2.rds"))
-saveRDS(AME3, file = here::here("AME3.rds"))
+# Mapping of variables to sections
+category_map <- data.frame(
+  variable = c(
+    "hh_foreign","hh_oneperson","hh_singleparent","hh_twoadultsalone","hh_twoadultsandchild",
+    "hh_num_members","hh_num_minors","hh_propmale18","hh_meanage18",
+    "hh_some_higheduc","hh_all_higheduc",
+    "inc_1_to_2_thous","inc_2_to_3_thous","inc_3_to_5_thous","inc_more_5_thous",
+    "ws_all_work","ws_none_work",
+    "wp_myprovince","wp_otherplace","wp_ownhome",
+    "com_20_to_39_min","com_40_to_59_min","com_more_1_hour",
+    "com_num_trips",
+    "geo_50_100_thous","geo_100_500_thous","geo_more_500_thous",
+    "geo_barcelona","geo_madrid","geo_services",
+    "h_secondhome","h_ownership","h_rental","h_park_slot","h_detached",
+    "mob_other_vehi","mob_pmt_priv_car","mob_pmt_pub_trans","mob_pmt_moto"
+  ),
+  category = c(
+    "Members born outside of Spain","Household structure","Household structure","Household structure","Household structure",
+    "Number of household members","Number of minor household members","Proportion of males >18 years","Mean age >18 years",
+    "High education","High education",
+    "Income","Income","Income","Income",
+    "Working status","Working status",
+    "Working place","Working place","Working place",
+    "Commutement time","Commutement time","Commutement time",
+    "Number of trips",
+    "Municipality size","Municipality size","Municipality size",
+    "Metropolitan areas","Metropolitan areas","Services available",
+    "Second home","Housing regime","Housing regime","Parking slot","Type of building",
+    "Other vehicles","Principal mode of transportation","Principal mode of transportation","Principal mode of transportation"
+  ),
+  stringsAsFactors = FALSE
+)
 
-# == [O] Prepare data for plotting =============================================
+# Function to create mean + CI in a single cell (rounded to 2 decimals)
+format_rows <- function(df){
+  df %>%
+    mutate(
+      `No vehicle (alt1)`    = paste0(round(alt1_mean,2), "\n[", round(alt1_lower,2), ", ", round(alt1_upper,2), "]"),
+      `Fuel vehicle (alt2)`  = paste0(round(alt2_mean,2), "\n[", round(alt2_lower,2), ", ", round(alt2_upper,2), "]"),
+      `Clean vehicle (alt3)` = paste0(round(alt3_mean,2), "\n[", round(alt3_lower,2), ", ", round(alt3_upper,2), "]")
+    ) %>%
+    select(variable, 
+           `No vehicle (alt1)`, 
+           `Fuel vehicle (alt2)`, 
+           `Clean vehicle (alt3)`)
+}
 
-# Define readable variable labels
+# Build table with section headers
+AME_with_sections <- category_map %>%
+  group_by(category) %>%
+  group_modify(~{
+    section_header <- data.frame(
+      variable               = .y$category,
+      `No vehicle (alt1)`    = "",
+      `Fuel vehicle (alt2)`  = "",
+      `Clean vehicle (alt3)` = "",
+      stringsAsFactors = FALSE
+    )
+    vars_rows <- AME_table %>%
+      filter(variable %in% .x$variable) %>%
+      format_rows()
+    bind_rows(section_header, vars_rows)
+  }) %>%
+  ungroup() %>%
+  rename(Variable = variable)
+
+# Save to Excel with formatting
+save_path <- "D:/Educacio/05_PHD/1_Papers/1_EV_Ownership/03_Review/AME_OR_Scripts_Petr/AME_table_final.xlsx"
+wb <- createWorkbook()
+addWorksheet(wb, "AME Table")
+writeData(wb, "AME Table", AME_with_sections, rowNames = FALSE)
+
+# Apply wrap text for all cells
+wrapStyle <- createStyle(wrapText = TRUE, valign = "top")
+addStyle(wb, "AME Table", style = wrapStyle, rows = 1:(nrow(AME_with_sections)+1), cols = 1:4, gridExpand = TRUE)
+
+# Bold section headers (rows where Variable equals a category)
+section_rows <- which(AME_with_sections$Variable %in% unique(category_map$category))
+headerStyle <- createStyle(textDecoration = "bold")
+addStyle(wb, "AME Table", 
+         style = headerStyle, 
+         rows  = section_rows + 1, 
+         cols  = 1:4, gridExpand = TRUE) # +1 because Excel starts at row 1
+
+# Adjust column widths
+setColWidths(wb, "AME Table", cols = 1:4, widths = "auto")
+
+# Save workbook
+saveWorkbook(wb, save_path, overwrite = TRUE)
+file.exists(save_path)
+
+# == [N] AME3 plot =============================================================
+
+# Prepare Data for Plotting ----
 label_map <- c(
   "inc_more_5_thous"     = ">5000€",
   "inc_1_to_2_thous"     = "1000€ to 2000€",
@@ -2175,70 +2175,61 @@ label_map <- c(
   "hh_meanage18"         = "Mean age (≥18)"
 )
 
-# Create plotting dataset
-plot_data <- AME3 %>%
-  # Group classification
-  mutate(group = case_when(
-    variable %in% c("inc_more_5_thous","inc_1_to_2_thous","inc_2_to_3_thous","inc_3_to_5_thous") ~ "Income",
-    variable %in% c("mob_other_vehi","mob_pmt_moto","mob_pmt_pub_trans","mob_pmt_priv_car") ~ "Principal mode \n of transportation",
-    variable %in% c("hh_all_higheduc","hh_num_members","hh_foreign","hh_some_higheduc", "hh_propmale18","hh_num_minors","hh_meanage18") ~ "Sociodemographic \n characteristics",
-    variable %in% c("geo_50_100_thous","geo_more_500_thous","geo_100_500_thous","geo_services","geo_madrid","geo_barcelona") ~ "Location",
-    variable %in% c("wp_ownhome","wp_myprovince","wp_otherplace","ws_none_work","ws_all_work") ~ "Working place \n and status",
-    variable %in% c("h_park_slot","h_detached","h_secondhome","h_rental","h_ownership") ~ "Dwelling \n characteristics",
-    variable %in% c("hh_oneperson","hh_twoadultsalone","hh_twoadultsandchild","hh_singleparent") ~ "Family structure",
-    TRUE ~ "Commutement \n habits"
-  ),
-  # Significance
-  significant     = ifelse(alt3_lower > 0 | alt3_upper < 0, TRUE, FALSE),
-  # Apply readable labels
-  variable_label = recode(variable, !!!label_map)) %>%
+# Filter out NAs
+AME3_plot <- AME3 %>%
+  filter(!is.na(alt3_mean))
+
+# Prepare plot_data
+plot_data <- AME3_plot %>%
+  mutate(
+    group = case_when(
+      variable %in% c("inc_more_5_thous","inc_1_to_2_thous","inc_2_to_3_thous","inc_3_to_5_thous") ~ "Income",
+      variable %in% c("mob_other_vehi","mob_pmt_moto","mob_pmt_pub_trans","mob_pmt_priv_car") ~ "Principal mode \n of transportation",
+      variable %in% c("hh_all_higheduc","hh_num_members","hh_foreign","hh_some_higheduc","hh_propmale18","hh_num_minors","hh_meanage18") ~ "Sociodemographic \n characteristics",
+      variable %in% c("geo_50_100_thous","geo_more_500_thous","geo_100_500_thous","geo_services","geo_madrid","geo_barcelona") ~ "Location",
+      variable %in% c("wp_ownhome","wp_myprovince","wp_otherplace","ws_none_work","ws_all_work") ~ "Working place \n and status",
+      variable %in% c("h_park_slot","h_detached","h_secondhome","h_rental","h_ownership") ~ "Dwelling \n characteristics",
+      variable %in% c("hh_oneperson","hh_twoadultsalone","hh_twoadultsandchild","hh_singleparent") ~ "Family structure",
+      TRUE ~ "Commutement \n habits"
+    ),
+    significant    = alt3_lower > 0 | alt3_upper < 0,
+    variable_label = recode(variable, !!!label_map)
+  ) %>%
   group_by(group) %>%
   mutate(variable_label = fct_reorder(variable_label, alt3_mean)) %>%
   ungroup()
 
-# == [P] Create & save plot ====================================================
-
-ggplot(plot_data, aes(x = alt3_mean, 
-                      y = variable_label)) +
-  
+# Plot
+plot <- ggplot(plot_data, aes(x = alt3_mean, y = variable_label)) +
   geom_vline(xintercept = 0, 
-             color      = "red", 
-             linetype   = "dashed", 
-             linewidth  = 0.4) +
-  
+             color = "red", 
+             linetype = "dashed", 
+             linewidth = 0.4) +
   geom_errorbarh(aes(xmin = alt3_lower, 
                      xmax = alt3_upper), 
-                 height    = 0.15, 
+                 height = 0.15, 
                  linewidth = 0.35, 
-                 color     = "black") +
-  
+                 color = "black") +
   geom_point(aes(shape = significant, 
-                 fill  = significant),
-             size  = 2.4, 
+                 fill = significant), 
+             size = 2.4, 
              color = "black") +
-  
   scale_shape_manual(values = c("TRUE" = 21, "FALSE" = 21), guide = "none") +
   scale_fill_manual(values = c("TRUE" = "black", "FALSE" = "white"), guide = "none") +
-  
   facet_grid(group ~ ., scales = "free_y", space = "free_y", switch = "y") +
-  
   labs(
     title = "Average Marginal Effects on the probability of choosing a clean vehicle",
-    subtitle = "95% CIs (1000 Parametric Monte Carlo simulations)*",
-    x = "AME (% points)",
+    subtitle = "95% CIs (1000 Parametric Monte Carlo Simulations)*",
+    x = "AME (percentage points)",
     y = NULL,
-    caption = "*AMEs for binary regressors report the discrete change in predicted probability from 0 to 1. 
-    For continuous regressors, AMEs report the average analytic derivative of the predicted probability with respect to each variable, evaluated at every observation*"
+    caption = "*AMEs for binary variables report the discrete change in predicted probability from 0 to 1. 
+    For continuous variables, AMEs report the average analytic derivative of the predicted probability with respect to each variable, evaluated at every observation*"
   ) +
-  
   scale_x_continuous(
-    breaks = seq(floor(min(plot_data$alt3_lower)), 
-                 ceiling(max(plot_data$alt3_upper)), 
-                 by = 0.25),
+    breaks = seq(floor(min(plot_data$alt3_lower)), ceiling(max(plot_data$alt3_upper)), by = 0.25),
     labels = scales::number_format(accuracy = 0.01),
     expand = expansion(mult = c(0.05, 0.05))
   ) +
-  
   theme_minimal(base_size = 13, base_family = "Times New Roman") +
   theme(
     plot.title         = element_text(face = "bold", size = 14, margin = margin(b = 4), hjust = 0.5),
@@ -2252,28 +2243,40 @@ ggplot(plot_data, aes(x = alt3_mean,
     panel.grid.minor.y = element_blank(),
     panel.grid.major.x = element_line(color = "grey90", size = 0.25),
     panel.grid.minor.x = element_blank(),
-    strip.text.y.left  = element_text(face = "bold", size = 9, angle = 0, 
+    strip.text.y.left = element_text(face = "bold", size = 9, angle = 0, 
                                      hjust = 0.5, vjust = 0.5, color = "black"),
     strip.background = element_rect(fill = "grey93", color = NA),
-    axis.ticks.y     = element_blank(),
-    plot.caption     = element_text(size = 8, color = "grey20",
+    axis.ticks.y = element_blank(),
+    plot.caption = element_text(size = 8, color = "grey20",
                                 hjust = 0, margin = margin(t = 12, b = 4)),
     plot.caption.position = "plot",
     plot.margin = margin(t = 20, r = 40, b = 25, l = 40)
   ) +
-  
   ggh4x::force_panelsizes(
     rows = unit(c(0.5, 0.6, 0.5, 0.5, 0.6, 0.5, 0.75, 0.6), "in"),
     respect = TRUE
   )
 
+if(file.exists("plot.pdf")) file.remove("plot.pdf")
+
+
 ggsave(
- "AME_EV_plot.pdf",
- width = 11,
- height = 8.5,
- units = "in",
- dpi = 300,
- device = cairo_pdf
+  "plot.pdf",
+  plot = plot,
+  width = 11,
+  height = 8.5,
+  units = "in",
+  dpi = 300,
+  device = pdf
+)
+
+ggsave(
+  filename = "plot.png",
+  plot = plot,
+  width = 11,
+  height = 8.5,
+  units = "in",
+  dpi = 300
 )
 
 # 6. END #######################################################################
@@ -2289,5 +2292,3 @@ time = end_time - start.time
 print(time) 
 
 # Last run time: ~100h
-
-
