@@ -49,11 +49,12 @@ You are free to copy, modify, and distribute the work as long as you provide app
 
 If you use or adapt this script for your work, please cite the following authors:
 
-- **Mercè Amich**, Department of Quantitative Methods, University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [merce.amich@ehu.eus](mailto:merce.amich@ehu.eus)
+- **Mercè Amich**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country (UPV/EHU), Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain; and University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [merce.amich@bc3research.eus](mailto:merce.amich@bc3research@ehu.eus)
 - **Manuel Tomás**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country, Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain. E-mail: [manuel.tomas@bc3research.org](mailto:manuel.tomas@bc3research.org)
 - **Iñaki Arto**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country, Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain. E-mail: [inaki.arto@bc3research.org](mailto:inaki.arto@bc3research.org)
 - **Petr Mariel**, Department of Quantitative Methods, University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [petr.mariel@ehu.es](mailto:petr.mariel@ehu.es), Tel: +34.94.601.3848, Fax: +34.94.601.3754
 
+Corresponding author for code queries: merce.amich@bc3research.org
 Please ensure that proper attribution is given when citing or using the script in your research or projects.
 
 
