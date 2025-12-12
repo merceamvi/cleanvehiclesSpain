@@ -55,6 +55,7 @@ If you use or adapt this script for your work, please cite the following authors
 - **Petr Mariel**, Department of Quantitative Methods, University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [petr.mariel@ehu.es](mailto:petr.mariel@ehu.es), Tel: +34.94.601.3848, Fax: +34.94.601.3754
 
 Corresponding author for code queries: merce.amich@bc3research.org
+
 Please ensure that proper attribution is given when citing or using the script in your research or projects.
 
 
