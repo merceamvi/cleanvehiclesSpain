@@ -1,7 +1,7 @@
 # Project       : Clean vehicle ownership in Spain
 # Creation date : 08/04/2024
-# Last update   : 31/11/2024
-# Author        : Mercè Amich (merce.amich@ehu.eus)
+# Last update   : 15/01/2026
+# Author        : Mercè Amich (merce.amich@bc3research.org)
 # Institution   : Euskal Herriko Unibertsitatea / Universidad del País Vasco
 # Last run time : ~100h
 
@@ -2292,3 +2292,4 @@ time = end_time - start.time
 print(time) 
 
 # Last run time: ~100h
+
