@@ -1,5 +1,5 @@
 # **Clean vehicle ownership: implications for effective policy interventions**
-This repository contains the R script developed for the analysis presented in the article "Clean vehicle ownership: implications for effective policy interventions", which has been submitted for publication in Energy Economics.
+This repository contains the R script developed for the analysis presented in the article [*Clean vehicle ownership: Implications for effective policy interventions*](https://doi.org/10.1016/j.eneco.2026.109172) (Energy Economics, DOI: 10.1016/j.eneco.2026.109172).
 
 ## **System and Software Information**
 R Version: The script was built using R version 4.3.1 (2023-06-16 ucrt).  
@@ -47,7 +47,8 @@ You are free to copy, modify, and distribute the work as long as you provide app
 
 ### Citation
 
-If you use or adapt this script for your work, please cite the following authors:
+If you use or adapt this script for your work, please cite:
+*Amich, M., Tomás, M., Mariel, P., & Arto, I. (2026). Clean vehicle ownership: Implications for effective policy interventions. Energy Economics, In Press. https://doi.org/10.1016/j.eneco.2026.109172*
 
 - **Mercè Amich**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country (UPV/EHU), Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain; and University of the Basque Country (UPV/EHU), Avda. Lehendakari Aguirre, 83, E48015 Bilbao, Spain. E-mail: [merce.amich@bc3research.eus](mailto:merce.amich@bc3research@ehu.eus)
 - **Manuel Tomás**, Basque Centre for Climate Change (BC3), Scientific Campus of the University of the Basque Country, Building 1, 1st floor, Sarriena s/n, E48940 Leioa, Spain. E-mail: [manuel.tomas@bc3research.org](mailto:manuel.tomas@bc3research.org)
